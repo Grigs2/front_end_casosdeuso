@@ -14,12 +14,14 @@ import { RootStackParamList } from '../navigation';
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
-type DriverScreenKey = 'DriverAttendance' | 'DriverRoute' | 'DriverStudents' | 'DriverProfile' | 'DriverVehicle' | 'DriverHistory' | 'DriverHelp';
+type DriverScreenKey = 'DriverAttendance' | 'DriverRoute' | 'DriverStudents' | 'DriverProfile' | 'DriverVehicle' | 'DriverHistory' | 'DriverHelp' | 'DriverInvites' | 'NoticeBoard';
 
-const FEATURES: { key: DriverScreenKey; label: string; icon: FeatherIconName }[] = [
-  { key: 'DriverAttendance', label: 'Chamada', icon: 'clipboard' },
-  { key: 'DriverRoute', label: 'Gerar Rota', icon: 'map-pin' },
-  { key: 'DriverStudents', label: 'Gerenciar Alunos', icon: 'users' },
+const FEATURES: { key: string; label: string; icon: FeatherIconName }[] = [
+  { key: 'DriverAttendanceDetail', label: 'Chamada', icon: 'clipboard' },
+  { key: 'DriverRoute', label: 'Roteiro', icon: 'map-pin' },
+  { key: 'DriverStudents', label: 'Alunos', icon: 'users' },
+  { key: 'DriverInvites', label: 'Convites', icon: 'mail' },
+  { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'DriverProfile', label: 'Meu Cadastro', icon: 'user' },
   { key: 'DriverVehicle', label: 'Meu Veículo', icon: 'truck' },
   { key: 'DriverHistory', label: 'Histórico', icon: 'clock' },

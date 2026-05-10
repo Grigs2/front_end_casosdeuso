@@ -22,8 +22,11 @@ type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
 const MENU_ITEMS: { key: string; label: string; icon: FeatherIconName }[] = [
   { key: 'Home', label: 'Home', icon: 'home' },
-  { key: 'GuardianTracking', label: 'Rastreamento', icon: 'navigation' },
-  { key: 'GuardianDependents', label: 'Meus Dependentes', icon: 'users' },
+  { key: 'GuardianTracking', label: 'Monitoramento', icon: 'navigation' },
+
+  { key: 'GuardianSearchDriver', label: 'Buscar Motorista', icon: 'search' },
+  { key: 'GuardianDependents', label: 'Dependentes', icon: 'users' },
+  { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'GuardianPlans', label: 'Planos', icon: 'credit-card' },
   { key: 'GuardianProfile', label: 'Meu Cadastro', icon: 'user' },
   { key: 'GuardianHistory', label: 'Histórico', icon: 'clock' },
@@ -66,7 +69,7 @@ export default function GuardianLayout({ children }: GuardianLayoutProps) {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       return;
     }
-    const screen = key as 'GuardianTracking' | 'GuardianDependents' | 'GuardianPlans' | 'GuardianProfile' | 'GuardianHistory' | 'GuardianHelp';
+    const screen = key as any;
     navigation.navigate(screen);
   };
 

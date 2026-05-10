@@ -14,11 +14,13 @@ import { RootStackParamList } from '../navigation';
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
-type GuardianScreenKey = 'GuardianTracking' | 'GuardianDependents' | 'GuardianPlans' | 'GuardianProfile' | 'GuardianHistory' | 'GuardianHelp';
+type GuardianScreenKey = 'GuardianTracking' | 'GuardianDependents' | 'GuardianPlans' | 'GuardianProfile' | 'GuardianHistory' | 'GuardianHelp' | 'GuardianSearchDriver' | 'NoticeBoard';
 
 const FEATURES: { key: GuardianScreenKey; label: string; icon: FeatherIconName }[] = [
-  { key: 'GuardianTracking', label: 'Rastreamento', icon: 'navigation' },
-  { key: 'GuardianDependents', label: 'Meus Dependentes', icon: 'users' },
+  { key: 'GuardianTracking', label: 'Monitoramento', icon: 'navigation' },
+  { key: 'GuardianSearchDriver', label: 'Buscar Motorista', icon: 'search' },
+  { key: 'GuardianDependents', label: 'Dependentes', icon: 'users' },
+  { key: 'NoticeBoard', label: 'Mural de Avisos', icon: 'bell' },
   { key: 'GuardianPlans', label: 'Planos', icon: 'credit-card' },
   { key: 'GuardianProfile', label: 'Meu Cadastro', icon: 'user' },
   { key: 'GuardianHistory', label: 'Histórico', icon: 'clock' },

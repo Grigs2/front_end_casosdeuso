@@ -11,11 +11,20 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import DriverMainScreen from './src/screens/DriverMainScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import DriverVehicleScreen from './src/screens/DriverVehicleScreen';
+import DriverInvitesScreen from './src/screens/DriverInvitesScreen';
+import DriverRouteViewScreen from './src/screens/DriverRouteViewScreen';
+import DriverAttendanceDetailScreen from './src/screens/DriverAttendanceDetailScreen';
+import DriverStudentsScreen from './src/screens/DriverStudentsScreen';
 import DriverLayout from './src/components/DriverLayout';
 import GuardianMainScreen from './src/screens/GuardianMainScreen';
 import GuardianDependentsScreen from './src/screens/GuardianDependentsScreen';
 import GuardianDependentFormScreen from './src/screens/GuardianDependentFormScreen';
+import GuardianSearchDriverScreen from './src/screens/GuardianSearchDriverScreen';
+import GuardianMonitoringScreen from './src/screens/GuardianMonitoringScreen';
+import NoticeBoardScreen from './src/screens/NoticeBoardScreen';
 import GuardianLayout from './src/components/GuardianLayout';
+import ProfileScreen from './src/screens/ProfileScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
 import { UserRole } from './src/types';
 import { RootStackParamList } from './src/navigation';
 
@@ -59,45 +68,34 @@ export default function App() {
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="DriverMain" component={DriverMainScreen} />
             <Stack.Screen name="DriverAttendance">
-              {() => <DriverLayout><PlaceholderScreen title="Chamada em construção" /></DriverLayout>}
+              {() => <DriverLayout><PlaceholderScreen /></DriverLayout>}
             </Stack.Screen>
-            <Stack.Screen name="DriverRoute">
-              {() => <DriverLayout><PlaceholderScreen title="Gerar Rota em construção" /></DriverLayout>}
-            </Stack.Screen>
-            <Stack.Screen name="DriverStudents">
-              {() => <DriverLayout><PlaceholderScreen title="Gerenciar Alunos em construção" /></DriverLayout>}
-            </Stack.Screen>
-            <Stack.Screen name="DriverProfile">
-              {() => <DriverLayout><PlaceholderScreen title="Meu Cadastro em construção" /></DriverLayout>}
-            </Stack.Screen>
+            <Stack.Screen name="DriverRoute" component={DriverRouteViewScreen} />
+            <Stack.Screen name="DriverAttendanceDetail" component={DriverAttendanceDetailScreen} />
+            <Stack.Screen name="DriverStudents" component={DriverStudentsScreen} />
+            <Stack.Screen name="DriverInvites" component={DriverInvitesScreen} />
+            <Stack.Screen name="DriverProfile" component={ProfileScreen} />
             <Stack.Screen name="DriverVehicle" component={DriverVehicleScreen} />
-            <Stack.Screen name="DriverHistory">
-              {() => <DriverLayout><PlaceholderScreen title="Histórico em construção" /></DriverLayout>}
-            </Stack.Screen>
+            <Stack.Screen name="DriverHistory" component={HistoryScreen} />
             <Stack.Screen name="DriverHelp">
-              {() => <DriverLayout><PlaceholderScreen title="Ajuda em construção" /></DriverLayout>}
+              {() => <DriverLayout><PlaceholderScreen /></DriverLayout>}
             </Stack.Screen>
             <Stack.Screen name="GuardianMain" component={GuardianMainScreen} />
-            <Stack.Screen name="GuardianTracking">
-              {() => <GuardianLayout><PlaceholderScreen title="Rastreamento em construção" /></GuardianLayout>}
-            </Stack.Screen>
+            <Stack.Screen name="GuardianTracking" component={GuardianMonitoringScreen} />
+            <Stack.Screen name="GuardianSearchDriver" component={GuardianSearchDriverScreen} />
+            <Stack.Screen name="GuardianMonitoring" component={GuardianMonitoringScreen} />
+            <Stack.Screen name="NoticeBoard" component={NoticeBoardScreen} />
             <Stack.Screen name="GuardianDependents" component={GuardianDependentsScreen} />
             <Stack.Screen name="GuardianDependentForm" component={GuardianDependentFormScreen} />
             <Stack.Screen name="GuardianPlans">
-              {() => <GuardianLayout><PlaceholderScreen title="Planos em construção" /></GuardianLayout>}
+              {() => <GuardianLayout><PlaceholderScreen /></GuardianLayout>}
             </Stack.Screen>
-            <Stack.Screen name="GuardianProfile">
-              {() => <GuardianLayout><PlaceholderScreen title="Meu Cadastro em construção" /></GuardianLayout>}
-            </Stack.Screen>
-            <Stack.Screen name="GuardianHistory">
-              {() => <GuardianLayout><PlaceholderScreen title="Histórico em construção" /></GuardianLayout>}
-            </Stack.Screen>
+            <Stack.Screen name="GuardianProfile" component={ProfileScreen} />
+            <Stack.Screen name="GuardianHistory" component={HistoryScreen} />
             <Stack.Screen name="GuardianHelp">
-              {() => <GuardianLayout><PlaceholderScreen title="Ajuda em construção" /></GuardianLayout>}
+              {() => <GuardianLayout><PlaceholderScreen /></GuardianLayout>}
             </Stack.Screen>
-            <Stack.Screen name="SchoolMain">
-              {() => <PlaceholderScreen title="Painel da Escola" />}
-            </Stack.Screen>
+            <Stack.Screen name="SchoolMain" component={PlaceholderScreen} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar style="dark" />

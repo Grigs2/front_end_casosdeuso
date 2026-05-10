@@ -22,9 +22,11 @@ type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
 const MENU_ITEMS: { key: string; label: string; icon: FeatherIconName }[] = [
   { key: 'Home', label: 'Home', icon: 'home' },
-  { key: 'DriverAttendance', label: 'Chamada', icon: 'clipboard' },
-  { key: 'DriverRoute', label: 'Gerar Rota', icon: 'map-pin' },
-  { key: 'DriverStudents', label: 'Gerenciar Alunos', icon: 'users' },
+  { key: 'DriverAttendanceDetail', label: 'Chamada', icon: 'clipboard' },
+  { key: 'DriverRoute', label: 'Roteiro', icon: 'map-pin' },
+  { key: 'DriverStudents', label: 'Alunos', icon: 'users' },
+  { key: 'DriverInvites', label: 'Convites', icon: 'mail' },
+  { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'DriverProfile', label: 'Meu Cadastro', icon: 'user' },
   { key: 'DriverVehicle', label: 'Meu Veículo', icon: 'truck' },
   { key: 'DriverHistory', label: 'Histórico', icon: 'clock' },
@@ -67,7 +69,7 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       return;
     }
-    const screen = key as 'DriverAttendance' | 'DriverRoute' | 'DriverStudents' | 'DriverProfile' | 'DriverVehicle' | 'DriverHistory' | 'DriverHelp';
+    const screen = key as any;
     navigation.navigate(screen);
   };
 
