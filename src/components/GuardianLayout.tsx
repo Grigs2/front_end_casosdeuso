@@ -23,8 +23,7 @@ type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 const MENU_ITEMS: { key: string; label: string; icon: FeatherIconName }[] = [
   { key: 'Home', label: 'Home', icon: 'home' },
   { key: 'GuardianTracking', label: 'Monitoramento', icon: 'navigation' },
-
-  { key: 'GuardianSearchDriver', label: 'Buscar Motorista', icon: 'search' },
+  { key: 'GuardianInvites', label: 'Convites', icon: 'mail' },
   { key: 'GuardianDependents', label: 'Dependentes', icon: 'users' },
   { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'GuardianPlans', label: 'Planos', icon: 'credit-card' },

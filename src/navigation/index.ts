@@ -11,8 +11,10 @@ export type RootStackParamList = {
   DriverHistory: undefined;
   DriverHelp: undefined;
   DriverInvites: undefined;
+  DriverSearchStudents: undefined;
   GuardianMain: undefined;
   GuardianTracking: undefined;
+  GuardianInvites: undefined;
   GuardianDependents: undefined;
   GuardianDependentForm: { dependentId?: string } | undefined;
   GuardianPlans: undefined;

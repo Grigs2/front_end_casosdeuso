@@ -15,6 +15,8 @@ import DriverInvitesScreen from './src/screens/DriverInvitesScreen';
 import DriverRouteViewScreen from './src/screens/DriverRouteViewScreen';
 import DriverAttendanceDetailScreen from './src/screens/DriverAttendanceDetailScreen';
 import DriverStudentsScreen from './src/screens/DriverStudentsScreen';
+import DriverSearchStudentsScreen from './src/screens/DriverSearchStudentsScreen';
+import GuardianInvitesScreen from './src/screens/GuardianInvitesScreen';
 import DriverLayout from './src/components/DriverLayout';
 import GuardianMainScreen from './src/screens/GuardianMainScreen';
 import GuardianDependentsScreen from './src/screens/GuardianDependentsScreen';
@@ -74,6 +76,7 @@ export default function App() {
             <Stack.Screen name="DriverAttendanceDetail" component={DriverAttendanceDetailScreen} />
             <Stack.Screen name="DriverStudents" component={DriverStudentsScreen} />
             <Stack.Screen name="DriverInvites" component={DriverInvitesScreen} />
+            <Stack.Screen name="DriverSearchStudents" component={DriverSearchStudentsScreen} />
             <Stack.Screen name="DriverProfile" component={ProfileScreen} />
             <Stack.Screen name="DriverVehicle" component={DriverVehicleScreen} />
             <Stack.Screen name="DriverHistory" component={HistoryScreen} />
@@ -82,6 +85,7 @@ export default function App() {
             </Stack.Screen>
             <Stack.Screen name="GuardianMain" component={GuardianMainScreen} />
             <Stack.Screen name="GuardianTracking" component={GuardianMonitoringScreen} />
+            <Stack.Screen name="GuardianInvites" component={GuardianInvitesScreen} />
             <Stack.Screen name="GuardianSearchDriver" component={GuardianSearchDriverScreen} />
             <Stack.Screen name="GuardianMonitoring" component={GuardianMonitoringScreen} />
             <Stack.Screen name="NoticeBoard" component={NoticeBoardScreen} />

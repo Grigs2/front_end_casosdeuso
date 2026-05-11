@@ -33,21 +33,37 @@ export default function DriverAttendanceDetailScreen({ route, navigation }: Prop
   // Verifica se recebeu parâmetros. Se não, assume Modo Geral.
   const hasParams = route.params && route.params.students;
   const stopDescription = route.params?.stopDescription || 'Chamada Geral (Todos os Alunos)';
-  const students = hasParams ? route.params.students : TODOS_OS_ALUNOS_MOCK;
-
+  
+  const [students, setStudents] = useState<string[]>([]);
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, string>>({});
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
   useEffect(() => {
-    loadAttendance();
+    loadData();
   }, []);
 
-  const loadAttendance = async () => {
+  const loadData = async () => {
     try {
-      const stored = await AsyncStorage.getItem('@daily_attendance');
-      if (stored) setAttendanceStatus(JSON.parse(stored));
-    } catch (e) {}
+      // Carregar status da chamada
+      const storedAttendance = await AsyncStorage.getItem('@daily_attendance');
+      if (storedAttendance) setAttendanceStatus(JSON.parse(storedAttendance));
+
+      // Carregar lista de alunos
+      if (hasParams) {
+        setStudents(route.params.students);
+      } else {
+        const storedAccepted = await AsyncStorage.getItem('@accepted_students');
+        const accepted = storedAccepted ? JSON.parse(storedAccepted) : [];
+        const acceptedNames = accepted.map((s: any) => s.nome);
+        
+        // Unir com o mock inicial para não ficar vazio no teste
+        const merged = Array.from(new Set([...TODOS_OS_ALUNOS_MOCK, ...acceptedNames]));
+        setStudents(merged);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleUpdateStatus = async (studentName: string, status: 'EMBARCOU' | 'DESEMBARCOU') => {

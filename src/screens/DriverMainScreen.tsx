@@ -14,13 +14,13 @@ import { RootStackParamList } from '../navigation';
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
-type DriverScreenKey = 'DriverAttendance' | 'DriverRoute' | 'DriverStudents' | 'DriverProfile' | 'DriverVehicle' | 'DriverHistory' | 'DriverHelp' | 'DriverInvites' | 'NoticeBoard';
+type DriverScreenKey = 'DriverAttendance' | 'DriverRoute' | 'DriverStudents' | 'DriverProfile' | 'DriverVehicle' | 'DriverHistory' | 'DriverHelp' | 'DriverInvites' | 'NoticeBoard' | 'DriverSearchStudents';
 
 const FEATURES: { key: string; label: string; icon: FeatherIconName }[] = [
   { key: 'DriverAttendanceDetail', label: 'Chamada', icon: 'clipboard' },
   { key: 'DriverRoute', label: 'Roteiro', icon: 'map-pin' },
-  { key: 'DriverStudents', label: 'Alunos', icon: 'users' },
-  { key: 'DriverInvites', label: 'Convites', icon: 'mail' },
+  { key: 'DriverSearchStudents', label: 'Buscar Alunos', icon: 'search' },
+  { key: 'DriverStudents', label: 'Meus Alunos', icon: 'users' },
   { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'DriverProfile', label: 'Meu Cadastro', icon: 'user' },
   { key: 'DriverVehicle', label: 'Meu Veículo', icon: 'truck' },
