@@ -1,121 +1,96 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import GuardianLayout from '../components/GuardianLayout';
-import { RootStackParamList } from '../navigation';
+import { useAppContext } from '../context/AppContext';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'GuardianTracking'>;
-
-export default function GuardianMonitoringScreen({ navigation }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [attendance, setAttendance] = useState<Record<string, string>>({});
+export default function GuardianMonitoringScreen() {
+  const { presenceHistory, dependents, currentUser, trips } = useAppContext();
   
-  const studentName = 'Lucas Santos'; // Mock de dependente do usuário logado
-
-  const loadStatus = useCallback(async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@daily_attendance');
-      if (stored) {
-        setAttendance(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadStatus();
-    }, [loadStatus])
-  );
+  const myDependents = dependents.filter(d => d.id_responsavel === currentUser?.id || d.id_responsavel === 11);
+  const student = myDependents[0]; // Simulation for the first student
+  
+  const today = new Date().toISOString().split('T')[0];
+  const presence = presenceHistory.find(p => p.id_dependente === student?.id && p.data === today);
+  const status = presence?.status || 'ESPERANDO';
 
   const getStatusDisplay = () => {
-    const status = attendance[studentName];
-    if (status === 'EMBARCADO') return { label: 'Embarcado - A caminho da escola', color: '#4CAF50', bg: '#E8F5E9' };
-    if (status === 'DESEMBARCADO') return { label: 'Desembarcado na Escola', color: '#9C27B0', bg: '#F3E5F5' };
-    return { label: 'Fora da Van / Aguardando', color: '#E53935', bg: '#FFEBEE' };
+    if (status === 'EMBARCADO') return { label: 'Embarcado - A caminho do destino', color: '#4CAF50', bg: '#E8F5E9', icon: 'truck' };
+    if (status === 'DESEMBARCADO') return { label: 'Desembarcado no Destino', color: '#9C27B0', bg: '#F3E5F5', icon: 'map-pin' };
+    if (status === 'FALTOU') return { label: 'Ausente na viagem de hoje', color: '#FF3B30', bg: '#FFEBEE', icon: 'user-x' };
+    return { label: 'Aguardando o início da rota', color: '#8E8E93', bg: '#F2F2F7', icon: 'clock' };
   };
 
   const statusInfo = getStatusDisplay();
+  const trip = trips[0]; // Simulation
 
   return (
     <GuardianLayout>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Monitoramento</Text>
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>AO VIVO</Text>
+          <Text style={styles.title}>Viagem Ativa</Text>
+          <View style={[styles.liveBadge, { backgroundColor: trip.status === 'EM_ANDAMENTO' ? '#FFEBEE' : '#F2F2F7' }]}>
+            <View style={[styles.liveDot, { backgroundColor: trip.status === 'EM_ANDAMENTO' ? '#E53935' : '#8E8E93' }]} />
+            <Text style={[styles.liveText, { color: trip.status === 'EM_ANDAMENTO' ? '#E53935' : '#8E8E93' }]}>
+              {trip.status === 'EM_ANDAMENTO' ? 'AO VIVO' : 'PLANEJADO'}
+            </Text>
           </View>
         </View>
 
-        {loading ? (
-          <ActivityIndicator size="large" color="#1976D2" style={styles.loader} />
-        ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.mapContainer}>
-              <View style={styles.mapOverlay}>
-                <View style={styles.markerContainer}>
-                  <View style={[styles.markerPulse, { backgroundColor: statusInfo.color + '20' }]} />
-                  <View style={[styles.marker, { backgroundColor: statusInfo.color }]}>
-                    <Feather name="truck" size={16} color="#FFFFFF" />
-                  </View>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.mapContainer}>
+            <View style={styles.mapOverlay}>
+              <View style={styles.markerContainer}>
+                <View style={[styles.markerPulse, { backgroundColor: statusInfo.color + '20' }]} />
+                <View style={[styles.marker, { backgroundColor: statusInfo.color }]}>
+                  <Feather name={statusInfo.icon as any} size={16} color="#FFFFFF" />
                 </View>
-              </View>
-              <View style={styles.mapTextContainer}>
-                <Feather name="map" size={32} color="#999" />
-                <Text style={styles.mapText}>Localização do Motorista</Text>
               </View>
             </View>
+            <View style={styles.mapTextContainer}>
+              <Feather name="map" size={32} color="#999" />
+              <Text style={styles.mapText}>Visualização em Tempo Real</Text>
+            </View>
+          </View>
 
-            <View style={styles.statusSection}>
-              <Text style={styles.sectionTitle}>Status do Dependente</Text>
-              
-              <View style={styles.statusCard}>
-                <View style={styles.studentInfo}>
-                  <View style={styles.avatar}>
-                    <Feather name="user" size={24} color="#1976D2" />
-                  </View>
-                  <View>
-                    <Text style={styles.studentName}>{studentName}</Text>
-                    <Text style={styles.updateText}>Atualizado em tempo real</Text>
-                  </View>
+          <View style={styles.statusSection}>
+            <Text style={styles.sectionTitle}>Status do Dependente</Text>
+            
+            <View style={styles.statusCard}>
+              <View style={styles.studentInfo}>
+                <View style={styles.avatar}>
+                  <Feather name="user" size={24} color="#1976D2" />
                 </View>
-
-                <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-                  <View style={[styles.dot, { backgroundColor: statusInfo.color }]} />
-                  <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                    {attendance[studentName] || 'Pendente'}
+                <View>
+                  <Text style={styles.studentName}>{student?.nome}</Text>
+                  <Text style={styles.updateText}>
+                    {presence?.horarioEmbarque ? `Embarque: ${new Date(presence.horarioEmbarque).toLocaleTimeString()}` : 'Aguardando embarque'}
                   </Text>
                 </View>
               </View>
 
-              <View style={[styles.mainStatusCard, { borderColor: statusInfo.color }]}>
-                <Text style={[styles.mainStatusText, { color: statusInfo.color }]}>
-                  {statusInfo.label}
+              <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
+                <View style={[styles.dot, { backgroundColor: statusInfo.color }]} />
+                <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                  {status}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.infoCard}>
-              <Feather name="info" size={20} color="#1976D2" />
-              <Text style={styles.infoText}>
-                Este status é alterado pelo motorista no momento do embarque/desembarque.
+            <View style={[styles.mainStatusCard, { borderColor: statusInfo.color }]}>
+              <Text style={[styles.mainStatusText, { color: statusInfo.color }]}>
+                {statusInfo.label}
               </Text>
             </View>
-          </ScrollView>
-        )}
+          </View>
+
+          <View style={styles.infoCard}>
+            <Feather name="info" size={20} color="#1976D2" />
+            <Text style={styles.infoText}>
+              ID Viagem: {trip.id} | Período: {trip.periodo.replace('_', ' ')}
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </GuardianLayout>
   );
@@ -125,10 +100,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 22, color: '#1D1D1F' },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#E53935', marginRight: 6 },
-  liveText: { color: '#E53935', fontFamily: 'Inter_700Bold', fontSize: 10 },
-  loader: { marginTop: 40 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  liveText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
   scrollContent: { paddingBottom: 40 },
   mapContainer: { width: '100%', height: 200, backgroundColor: '#F5F5F7', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 24, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E0E0' },
   mapOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 2 },

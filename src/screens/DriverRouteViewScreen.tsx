@@ -1,125 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import { useAppContext } from '../context/AppContext';
 import DriverLayout from '../components/DriverLayout';
-import { RootStackParamList } from '../navigation';
-import { Parada } from '../types';
 
-// Mock Data Seguindo Estrutura ParadaDTO
-const ROTEIRO_MOCK: Parada[] = [
-  { id: 1, tipo: 'INICIO', descricao: 'Saída da Garagem', horarioPrevisto: '06:30' },
-  { id: 2, tipo: 'EMBARQUE', descricao: 'Casa do Responsável (João)', dependentes: ['Lucas Santos', 'Mateus Silva'], horarioPrevisto: '06:45' },
-  { id: 3, tipo: 'EMBARQUE', descricao: 'Residência Maria', dependentes: ['Ana Clara'], horarioPrevisto: '07:05' },
-  { id: 4, tipo: 'ESCOLA', descricao: 'Escola Adventista', horarioPrevisto: '07:30' },
-];
+export default function DriverRouteViewScreen() {
+  const navigation = useNavigation<any>();
+  const { trips, solicitations, dependents, startTrip, finishTrip, currentUser, schools } = useAppContext();
+  
+  const [selectedPeriod, setSelectedPeriod] = useState<'MANHA' | 'TARDE' | 'NOITE' | null>(null);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'DriverRoute'>;
+  // Find active trip for the selected period
+  const activeTrip = trips.find(t => t.periodo === selectedPeriod && t.status_operacional !== 'FINALIZADA');
 
-export default function DriverRouteViewScreen({ navigation }: Props) {
-  const [route, setRoute] = useState<Parada[]>(ROTEIRO_MOCK);
-  const [attendanceProgress, setAttendanceProgress] = useState<Record<number, number>>({});
+  const getRouteStops = () => {
+    if (!activeTrip) return [];
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadAttendanceProgress();
+    const acceptedStudents = solicitations
+      .filter(s => s.id_viagem === activeTrip.id && s.aceito)
+      .map(s => dependents.find(d => d.id === s.id_dependente))
+      .filter(Boolean);
+
+    const stops = [];
+    
+    // Stop 0: Driver's House
+    stops.push({
+      id: 0,
+      tipo: 'MOTORISTA',
+      local: 'Sua Residência (Ponto de Partida)',
+      endereco: currentUser?.endereco || 'Rua do Motorista, 123',
+      alunos: []
     });
-    return unsubscribe;
-  }, [navigation]);
 
-  const loadAttendanceProgress = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@daily_attendance');
-      if (stored) {
-        const fullAttendance = JSON.parse(stored);
-        const progress: Record<number, number> = {};
-        
-        ROTEIRO_MOCK.forEach(stop => {
-          if (stop.dependentes) {
-            const done = stop.dependentes.filter(name => fullAttendance[name]).length;
-            progress[stop.id] = done;
-          }
-        });
-        setAttendanceProgress(progress);
-      }
-    } catch (e) {}
+    // Sequence of Students (Simple logic: by student ID/Address for now)
+    acceptedStudents.forEach((student, index) => {
+      stops.push({
+        id: index + 1,
+        tipo: 'ALUNO',
+        local: student!.nome,
+        endereco: student!.endereco,
+        alunos: [student]
+      });
+    });
+
+    return stops;
   };
+
+  const handleStart = () => {
+    if (!activeTrip) return;
+    const students = solicitations.filter(s => s.id_viagem === activeTrip.id && s.aceito);
+    if (students.length === 0) {
+      Alert.alert('Erro', 'Não há alunos vinculados e aprovados para este período.');
+      return;
+    }
+    startTrip(activeTrip.id);
+    Alert.alert('Iniciado', 'Viagem do dia em andamento.');
+  };
+
+  const handleFinish = () => {
+    if (!activeTrip) return;
+    finishTrip(activeTrip.id);
+    Alert.alert('Finalizado', 'Rota concluída.');
+  };
+
+  const stops = getRouteStops();
 
   return (
     <DriverLayout>
-      <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Roteiro de Viagem</Text>
-          <Text style={styles.subtitle}>Acompanhe suas próximas paradas</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={24} color="#1D1D1F" /></TouchableOpacity>
+          <Text style={styles.title}>Roteiro do Dia</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.timelineContainer}>
-          {route.map((item, index) => {
-            const isResponsible = item.tipo === 'EMBARQUE' || item.tipo === 'DESEMBARQUE';
-            const progress = attendanceProgress[item.id] || 0;
-            const total = item.dependentes?.length || 0;
-            const isFinished = total > 0 && progress === total;
+        {/* 1. Period Selector (Dropdown) */}
+        <TouchableOpacity 
+          style={styles.dropdown}
+          onPress={() => setShowPeriodDropdown(true)}
+        >
+          <View>
+            <Text style={styles.dropdownLabel}>Período de Trabalho:</Text>
+            <Text style={styles.dropdownValue}>
+              {selectedPeriod ? selectedPeriod : 'Selecione o período...'}
+            </Text>
+          </View>
+          <Feather name="chevron-down" size={20} color="#1976D2" />
+        </TouchableOpacity>
 
-            return (
-              <View key={item.id} style={styles.timelineItem}>
-                {/* Indicadores Visuais da Rota */}
-                <View style={styles.indicatorContainer}>
-                  <View style={[
-                    styles.dot, 
-                    item.tipo === 'INICIO' && styles.dotStart,
-                    item.tipo === 'ESCOLA' && styles.dotEnd,
-                    isFinished && styles.dotFinished
-                  ]} />
-                  {index < route.length - 1 && <View style={styles.line} />}
-                </View>
-
-                {/* Conteúdo da Parada */}
-                <View style={[styles.card, isFinished && styles.cardFinished]}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.infoGroup}>
-                      <Text style={styles.stopLabel}>{item.descricao}</Text>
-                      <Text style={styles.stopTime}>
-                        <Feather name="clock" size={12} /> {item.horarioPrevisto}
-                      </Text>
-                    </View>
-                    {isFinished && <Feather name="check-circle" size={20} color="#4CAF50" />}
-                  </View>
-
-                  {isResponsible && (
-                    <TouchableOpacity 
-                      style={[styles.primaryAction, isFinished && styles.secondaryAction]}
-                      onPress={() => navigation.navigate('DriverAttendanceDetail', {
-                        stopId: item.id,
-                        stopDescription: item.descricao,
-                        students: item.dependentes || []
-                      })}
-                    >
-                      <Feather name="clipboard" size={16} color="#FFF" />
-                      <Text style={styles.primaryActionText}>
-                        {isFinished ? 'REVISAR CHAMADA' : 'REALIZAR CHAMADA'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  
-                  {total > 0 && !isFinished && (
-                    <Text style={styles.progressText}>
-                      Progresso: {progress} de {total} alunos
-                    </Text>
-                  )}
-                </View>
+        {/* 2. Top-Level Status Controls */}
+        {activeTrip && (
+          <View style={styles.statusControls}>
+            {activeTrip.status_operacional === 'PLANEJADA' ? (
+              <TouchableOpacity style={[styles.statusBtn, styles.startBtn]} onPress={handleStart}>
+                <Feather name="play" size={18} color="#FFF" />
+                <Text style={styles.statusBtnText}>Iniciar Viagem</Text>
+              </TouchableOpacity>
+            ) : activeTrip.status_operacional === 'EM_ANDAMENTO' ? (
+              <TouchableOpacity style={[styles.statusBtn, styles.finishBtn]} onPress={handleFinish}>
+                <Feather name="square" size={18} color="#FFF" />
+                <Text style={styles.statusBtnText}>Finalizar Rota</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.completedBadge}>
+                <Text style={styles.completedText}>VIAGEM CONCLUÍDA</Text>
               </View>
-            );
-          })}
+            )}
+          </View>
+        )}
+
+        {/* 3. Timeline View (The design requested) */}
+        <ScrollView contentContainerStyle={styles.timelineContainer}>
+          {selectedPeriod && stops.length === 0 && (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>Nenhum aluno aprovado para este período.</Text>
+            </View>
+          )}
+
+          {stops.map((stop, index) => (
+            <View key={index} style={styles.stopRow}>
+              {/* Timeline Connector */}
+              <View style={styles.indicator}>
+                <View style={[styles.dot, stop.tipo === 'MOTORISTA' ? styles.dotDriver : styles.dotStudent]}>
+                  {stop.tipo === 'MOTORISTA' ? <Feather name="home" size={12} color="#FFF" /> : <Text style={styles.dotNum}>{stop.id}</Text>}
+                </View>
+                {index < stops.length - 1 && <View style={styles.line} />}
+              </View>
+
+              {/* Stop Details */}
+              <View style={styles.details}>
+                <View style={styles.detailsContent}>
+                  <Text style={styles.stopLocal}>{stop.local}</Text>
+                  <Text style={styles.stopAddr}>{stop.endereco}</Text>
+                </View>
+
+                {stop.tipo === 'ALUNO' && activeTrip?.status_operacional === 'EM_ANDAMENTO' && (
+                  <TouchableOpacity 
+                    style={styles.chamadaBtn}
+                    onPress={() => navigation.navigate('DriverAttendanceDetail', { 
+                      tripId: activeTrip.id,
+                      stopId: stop.id,
+                      students: stop.alunos,
+                      description: stop.local
+                    })}
+                  >
+                    <Feather name="clipboard" size={16} color="#FFF" />
+                    <Text style={styles.chamadaBtnText}>Chamada</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
         </ScrollView>
+
+        {/* Period Selection Modal */}
+        <Modal visible={showPeriodDropdown} transparent animationType="fade">
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowPeriodDropdown(false)}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Trocar Período</Text>
+              {['MANHA', 'TARDE', 'NOITE'].map(p => (
+                <TouchableOpacity 
+                  key={p} 
+                  style={styles.option} 
+                  onPress={() => { setSelectedPeriod(p as any); setShowPeriodDropdown(false); }}
+                >
+                  <Text style={styles.optionText}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </DriverLayout>
   );
@@ -127,25 +182,46 @@ export default function DriverRouteViewScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  header: { marginBottom: 24 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 26, color: '#1D1D1F' },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#86868B', marginTop: 4 },
-  timelineContainer: { paddingBottom: 40 },
-  timelineItem: { flexDirection: 'row', minHeight: 120 },
-  indicatorContainer: { alignItems: 'center', width: 24, marginRight: 16 },
-  dot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#E0E0E0', borderWidth: 3, borderColor: '#FFF', elevation: 2, zIndex: 2 },
-  dotStart: { backgroundColor: '#1976D2' },
-  dotEnd: { backgroundColor: '#E53935' },
-  dotFinished: { backgroundColor: '#4CAF50' },
-  line: { width: 2, flex: 1, backgroundColor: '#E0E0E0', marginTop: -4 },
-  card: { flex: 1, backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 24, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F0F0F0' },
-  cardFinished: { borderColor: '#E8F5E9' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  infoGroup: { flex: 1 },
-  stopLabel: { fontFamily: 'Inter_700Bold', fontSize: 16, color: '#1D1D1F' },
-  stopTime: { fontFamily: 'Inter_500Medium', fontSize: 13, color: '#1976D2', marginTop: 4 },
-  primaryAction: { backgroundColor: '#1976D2', height: 48, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  secondaryAction: { backgroundColor: '#86868B' },
-  primaryActionText: { color: '#FFF', fontFamily: 'Inter_700Bold', fontSize: 13, marginLeft: 8 },
-  progressText: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#86868B', marginTop: 12, textAlign: 'right' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20, marginTop: 10 },
+  title: { fontSize: 22, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
+  dropdown: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    backgroundColor: '#FFF', 
+    padding: 16, 
+    borderRadius: 16, 
+    elevation: 2, 
+    marginBottom: 20 
+  },
+  dropdownLabel: { fontSize: 11, color: '#86868B', textTransform: 'uppercase', fontFamily: 'Inter_600SemiBold' },
+  dropdownValue: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#1976D2', marginTop: 2 },
+  statusControls: { marginBottom: 30, flexDirection: 'row' },
+  statusBtn: { flex: 1, height: 50, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, elevation: 3 },
+  startBtn: { backgroundColor: '#34C759' },
+  finishBtn: { backgroundColor: '#FF3B30' },
+  statusBtnText: { color: '#FFF', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  completedBadge: { flex: 1, backgroundColor: '#F2F2F7', padding: 14, borderRadius: 12, alignItems: 'center' },
+  completedText: { color: '#86868B', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  timelineContainer: { paddingLeft: 10, paddingBottom: 40 },
+  stopRow: { flexDirection: 'row', minHeight: 80 },
+  indicator: { alignItems: 'center', width: 40, marginRight: 16 },
+  dot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  dotDriver: { backgroundColor: '#8E8E93' },
+  dotStudent: { backgroundColor: '#1976D2' },
+  dotNum: { color: '#FFF', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  line: { width: 3, flex: 1, backgroundColor: '#E5E5EA', marginTop: -2, marginBottom: -2 },
+  details: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', paddingBottom: 30 },
+  detailsContent: { flex: 1 },
+  stopLocal: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
+  stopAddr: { fontSize: 12, color: '#86868B', marginTop: 4 },
+  chamadaBtn: { backgroundColor: '#1976D2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 10 },
+  chamadaBtnText: { color: '#FFF', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  empty: { marginTop: 40, alignItems: 'center' },
+  emptyText: { color: '#86868B', fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 40 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 24, padding: 24 },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 20, textAlign: 'center' },
+  option: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
+  optionText: { fontSize: 16, textAlign: 'center', color: '#1D1D1F' }
 });

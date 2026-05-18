@@ -1,91 +1,117 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
+import React from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useAppContext } from '../context/AppContext';
 import GuardianLayout from '../components/GuardianLayout';
-import { RootStackParamList } from '../navigation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'GuardianDependents'>;
+export default function GuardianDependentsScreen() {
+  const navigation = useNavigation<any>();
+  const { dependents, solicitations, endLink, currentUser, schools } = useAppContext();
+  
+  const myDependents = dependents.filter(d => d.id_responsavel === currentUser?.id || d.id_responsavel === 11);
 
-export default function GuardianDependentsScreen({ navigation }: Props) {
-  const [dependents, setDependents] = useState<any[]>([]);
-
-  const loadDependents = useCallback(async () => {
-    try {
-      const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const user = users.find((u: any) => u.email === loggedEmail);
-      setDependents(user?.dependents || []);
-    } catch {}
-  }, []);
-
-  useFocusEffect(useCallback(() => { loadDependents(); }, [loadDependents]));
-
-  const handleDelete = async (dep: any) => {
-    const performDelete = async () => {
-      try {
-        const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-        const stored = await AsyncStorage.getItem('@users');
-        const users = stored ? JSON.parse(stored) : [];
-        const index = users.findIndex((u: any) => u.email === loggedEmail);
-        if (index === -1) return;
-
-        users[index].dependents = users[index].dependents.filter((d: any) => d.id !== dep.id);
-        await AsyncStorage.setItem('@users', JSON.stringify(users));
-        setDependents(users[index].dependents);
-      } catch {
-        Platform.OS === 'web' ? window.alert('Erro ao excluir.') : Alert.alert('Erro', 'Erro ao excluir.');
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Excluir ${dep.nome}?`)) performDelete();
+  const handleEndLink = (studentId: number) => {
+    const sol = solicitations.find(s => s.id_dependente === studentId && s.aceito);
+    if (sol) {
+      Alert.alert(
+        'Encerrar Vínculo',
+        'Tem certeza que deseja encerrar o transporte com este motorista?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Encerrar', 
+            style: 'destructive', 
+            onPress: () => {
+              endLink(sol.id);
+              Alert.alert('Sucesso', 'Vínculo encerrado. O aluno agora está disponível para outros motoristas.');
+            } 
+          }
+        ]
+      );
     } else {
-      Alert.alert('Excluir', `Deseja excluir ${dep.nome}?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: performDelete }
-      ]);
+      Alert.alert('Info', 'Este dependente não possui vínculo ativo com motorista.');
     }
   };
 
   return (
-      <GuardianLayout>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+    <GuardianLayout>
+      <View style={styles.container}>
+        <View style={styles.header}>
           <Text style={styles.title}>Meus Dependentes</Text>
-          <TouchableOpacity style={styles.newButton} onPress={() => navigation.navigate('GuardianDependentForm', {})}>
-            <Feather name="plus" size={20} color="#FFFFFF" />
-            <Text style={styles.newButtonText}>Novo Dependente</Text>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => navigation.navigate('GuardianDependentForm')}
+          >
+            <Feather name="plus" size={20} color="#FFF" />
+            <Text style={styles.addButtonText}>Novo</Text>
           </TouchableOpacity>
+        </View>
 
-          {dependents.length === 0 ? (
-              <View style={styles.emptyContainer}><Feather name="users" size={48} color="#C7C7CC" /><Text style={styles.emptyText}>Nenhum cadastrado</Text></View>
-          ) : (
-              dependents.map((dep) => (
-                  <TouchableOpacity key={dep.id} style={styles.card} onPress={() => navigation.navigate('GuardianDependentForm', { dependentId: dep.id })}>
-                    <View style={{ flex: 1 }}><Text style={styles.cardName}>{dep.nome}</Text><Text style={styles.cardSchool}>{dep.escola}</Text></View>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(dep)}>
-                      <Feather name="trash-2" size={18} color="#E53935" />
-                    </TouchableOpacity>
+        <FlatList
+          data={myDependents}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => {
+            const school = schools.find(s => s.id === item.id_escola);
+            const activeSol = solicitations.find(s => s.id_dependente === item.id && s.aceito);
+            
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.studentName}>{item.nome}</Text>
+                  <Text style={styles.schoolName}>{school?.nome}</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={[styles.statusText, activeSol ? styles.statusActive : styles.statusInactive]}>
+                      {activeSol ? 'Vínculo Ativo' : 'Sem Transporte'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.actions}>
+                  <TouchableOpacity 
+                    style={styles.editButton}
+                    onPress={() => navigation.navigate('GuardianDependentForm', { dependentId: item.id })}
+                  >
+                    <Feather name="edit-2" size={18} color="#1976D2" />
                   </TouchableOpacity>
-              ))
-          )}
-        </ScrollView>
-      </GuardianLayout>
+
+                  {activeSol && (
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => handleEndLink(item.id)}
+                    >
+                      <Feather name="link-2" size={18} color="#FF3B30" />
+                      <Text style={styles.deleteText}>Encerrar Vínculo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          }}
+        />
+      </View>
+    </GuardianLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 20, paddingTop: 24, paddingBottom: 40 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 24, color: '#1D1D1F', marginBottom: 16 },
-  newButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1976D2', height: 48, borderRadius: 12, marginBottom: 24, cursor: 'pointer' } as any,
-  newButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: '#FFFFFF', marginLeft: 8 },
-  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  emptyText: { fontFamily: 'Inter_400Regular', fontSize: 16, color: '#86868B', marginTop: 12 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 12, elevation: 3, cursor: 'pointer' } as any,
-  cardName: { fontFamily: 'Inter_600SemiBold', fontSize: 16, color: '#1D1D1F' },
-  cardSchool: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#86868B' },
-  deleteButton: { padding: 8, borderRadius: 8, backgroundColor: '#FDECEA', cursor: 'pointer' } as any,
+  container: { flex: 1, padding: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 24, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
+  addButton: { backgroundColor: '#1976D2', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  addButtonText: { color: '#FFF', marginLeft: 4, fontFamily: 'Inter_600SemiBold' },
+  list: { paddingBottom: 20 },
+  card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  cardInfo: { marginBottom: 16 },
+  studentName: { fontSize: 18, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
+  schoolName: { fontSize: 14, color: '#86868B', marginTop: 4 },
+  statusBadge: { marginTop: 12 },
+  statusText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  statusActive: { color: '#34C759' },
+  statusInactive: { color: '#FF9500' },
+  actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F2F2F7', paddingTop: 12 },
+  editButton: { padding: 8 },
+  deleteButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  deleteText: { color: '#FF3B30', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

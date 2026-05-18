@@ -1,161 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import GuardianLayout from '../components/GuardianLayout';
-import { RootStackParamList } from '../navigation';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, FlatList } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useAppContext } from '../context/AppContext';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'GuardianDependentForm'>;
-
-function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-function maskCpf(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  return digits
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-function maskDate(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  return digits
-      .replace(/(\d{2})(\d)/, '$1/$2')
-      .replace(/(\d{2})(\d)/, '$1/$2');
-}
-
-export default function GuardianDependentFormScreen({ navigation, route }: Props) {
-  const dependentId = route.params?.dependentId;
-  const isEditing = !!dependentId;
-
+export default function GuardianDependentFormScreen() {
+  const navigation = useNavigation<any>();
+  const { schools, addDependent, currentUser } = useAppContext();
+  
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
-  const [dataNascimento, setDataNascimento] = useState('');
-  const [periodo, setPeriodo] = useState<'Matutino' | 'Vespertino'>('Matutino');
+  const [idade, setIdade] = useState('');
+  const [sexo, setSexo] = useState<'M' | 'F'>('M');
   const [endereco, setEndereco] = useState('');
-  const [escola, setEscola] = useState('');
+  const [idEscola, setIdEscola] = useState<number | null>(null);
+  const [periodo, setPeriodo] = useState<'MANHA' | 'TARDE' | 'NOITE'>('MANHA');
+  const [showSchoolModal, setShowSchoolModal] = useState(false);
 
-  useEffect(() => {
-    if (isEditing) loadDependent();
-  }, []);
-
-  const loadDependent = async () => {
-    try {
-      const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const user = users.find((u: any) => u.email === loggedEmail);
-      const dep = user?.dependents?.find((d: any) => d.id === dependentId);
-
-      if (dep) {
-        setNome(dep.nome);
-        setCpf(dep.cpf);
-        setDataNascimento(dep.dataNascimento);
-        setPeriodo(dep.periodo);
-        setEndereco(dep.endereco);
-        setEscola(dep.escola);
-      }
-    } catch {}
-  };
-
-  const handleSave = async () => {
-    if (!nome.trim() || !cpf.trim() || !dataNascimento.trim() || !endereco.trim() || !escola.trim()) {
-      Platform.OS === 'web' ? window.alert('Preencha todos os campos.') : Alert.alert('Atenção', 'Preencha todos os campos.');
+  const handleSave = () => {
+    if (!nome || !cpf || !idEscola || !endereco) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma escola.');
       return;
     }
 
-    try {
-      const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const userIndex = users.findIndex((u: any) => u.email === loggedEmail);
+    addDependent({
+      nome,
+      cpf,
+      idade: parseInt(idade) || 0,
+      sexo,
+      endereco,
+      id_escola: idEscola,
+      id_responsavel: 11, // Mock current guardian ID
+      periodo
+    });
 
-      if (userIndex === -1) return;
-
-      if (!users[userIndex].dependents) users[userIndex].dependents = [];
-
-      const dependentData = {
-        nome: nome.trim(),
-        cpf: cpf.trim(),
-        dataNascimento: dataNascimento.trim(),
-        periodo,
-        endereco: endereco.trim(),
-        escola: escola.trim(),
-      };
-
-      if (isEditing) {
-        const depIndex = users[userIndex].dependents.findIndex((d: any) => d.id === dependentId);
-        if (depIndex !== -1) users[userIndex].dependents[depIndex] = { ...users[userIndex].dependents[depIndex], ...dependentData };
-      } else {
-        users[userIndex].dependents.push({ id: generateId(), ...dependentData });
-      }
-
-      await AsyncStorage.setItem('@users', JSON.stringify(users));
-
-      if (Platform.OS === 'web') {
-        window.alert('Salvo com sucesso!');
-        navigation.goBack();
-      } else {
-        Alert.alert('Sucesso', 'Dados salvos!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
-      }
-    } catch {
-      Platform.OS === 'web' ? window.alert('Erro ao salvar.') : Alert.alert('Erro', 'Não foi possível salvar.');
-    }
+    Alert.alert('Sucesso', 'Dependente cadastrado e vinculado à escola.');
+    navigation.goBack();
   };
 
+  const selectedSchoolName = schools.find(s => s.id === idEscola)?.nome || 'Selecionar Escola...';
+
   return (
-      <GuardianLayout>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <Text style={styles.title}>{isEditing ? 'Editar Dependente' : 'Novo Dependente'}</Text>
-            <View style={styles.card}>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Nome</Text><TextInput style={styles.input} value={nome} onChangeText={setNome} /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>CPF</Text><TextInput style={styles.input} value={cpf} onChangeText={(t) => setCpf(maskCpf(t))} keyboardType="numeric" maxLength={14} /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Nascimento</Text><TextInput style={styles.input} value={dataNascimento} onChangeText={(t) => setDataNascimento(maskDate(t))} keyboardType="numeric" maxLength={10} /></View>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Período</Text>
-                <View style={styles.segmentedControl}>
-                  <TouchableOpacity style={[styles.segmentButton, periodo === 'Matutino' && styles.segmentButtonActive]} onPress={() => setPeriodo('Matutino')}><Text style={[styles.segmentText, periodo === 'Matutino' && styles.segmentTextActive]}>Matutino</Text></TouchableOpacity>
-                  <TouchableOpacity style={[styles.segmentButton, periodo === 'Vespertino' && styles.segmentButtonActive]} onPress={() => setPeriodo('Vespertino')}><Text style={[styles.segmentText, periodo === 'Vespertino' && styles.segmentTextActive]}>Vespertino</Text></TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Endereço</Text><TextInput style={styles.input} value={endereco} onChangeText={setEndereco} /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Escola</Text><TextInput style={styles.input} value={escola} onChangeText={setEscola} /></View>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}><Text style={styles.saveButtonText}>Salvar</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}><Text style={styles.cancelButtonText}>Cancelar</Text></TouchableOpacity>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </GuardianLayout>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={24} color="#1D1D1F" /></TouchableOpacity>
+        <Text style={styles.title}>Novo Dependente</Text>
+      </View>
+
+      <View style={styles.form}>
+        <Text style={styles.label}>Nome Completo:</Text>
+        <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Ex: Enzo Silva" />
+
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.label}>CPF:</Text>
+            <TextInput style={styles.input} value={cpf} onChangeText={setCpf} placeholder="000.000.000-00" keyboardType="numeric" />
+          </View>
+          <View style={{ width: 100 }}>
+            <Text style={styles.label}>Idade:</Text>
+            <TextInput style={styles.input} value={idade} onChangeText={setIdade} placeholder="Ex: 8" keyboardType="numeric" />
+          </View>
+        </View>
+
+        <Text style={styles.label}>Sexo:</Text>
+        <View style={styles.radioRow}>
+          {['M', 'F'].map(s => (
+            <TouchableOpacity key={s} style={[styles.radio, sexo === s && styles.radioActive]} onPress={() => setSexo(s as any)}>
+              <Text style={[styles.radioText, sexo === s && styles.radioTextActive]}>{s === 'M' ? 'Masculino' : 'Feminino'}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Endereço de Embarque:</Text>
+        <TextInput style={styles.input} value={endereco} onChangeText={setEndereco} placeholder="Rua, Número, Bairro" />
+
+        {/* Mandatory School Linkage */}
+        <Text style={styles.label}>Escola de Destino (Obrigatório):</Text>
+        <TouchableOpacity style={styles.dropdown} onPress={() => setShowSchoolModal(true)}>
+          <Text style={styles.dropdownValue}>{selectedSchoolName}</Text>
+          <Feather name="chevron-down" size={20} color="#1976D2" />
+        </TouchableOpacity>
+
+        <Text style={styles.label}>Período de Aula:</Text>
+        <View style={styles.radioRow}>
+          {['MANHA', 'TARDE', 'NOITE'].map(p => (
+            <TouchableOpacity key={p} style={[styles.radio, periodo === p && styles.radioActive]} onPress={() => setPeriodo(p as any)}>
+              <Text style={[styles.radioText, periodo === p && styles.radioTextActive]}>{p}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <Text style={styles.saveBtnText}>Salvar e Vincular Escola</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={showSchoolModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Lista de Escolas</Text>
+            <FlatList
+              data={schools}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.schoolItem} 
+                  onPress={() => { setIdEscola(item.id); setShowSchoolModal(false); }}
+                >
+                  <Text style={styles.schoolName}>{item.nome}</Text>
+                  <Text style={styles.schoolAddr}>{item.endereco}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowSchoolModal(false)}>
+              <Text style={styles.closeBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { padding: 20, paddingTop: 24, paddingBottom: 40 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 24, color: '#1D1D1F', marginBottom: 24 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 32, elevation: 4 },
-  fieldGroup: { marginBottom: 24 },
-  label: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#1D1D1F', marginBottom: 12 },
-  input: { fontFamily: 'Inter_400Regular', fontSize: 17, height: 52, borderRadius: 12, backgroundColor: '#F5F5F7', paddingHorizontal: 16 },
-  segmentedControl: { flexDirection: 'row', backgroundColor: '#F5F5F7', borderRadius: 12, padding: 4 },
-  segmentButton: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 10, cursor: 'pointer' } as any,
-  segmentButtonActive: { backgroundColor: '#1976D2' },
-  segmentText: { fontFamily: 'Inter_500Medium', fontSize: 15, color: '#86868B' },
-  segmentTextActive: { color: '#FFFFFF' },
-  saveButton: { height: 52, borderRadius: 12, backgroundColor: '#1976D2', alignItems: 'center', justifyContent: 'center', marginTop: 8, cursor: 'pointer' } as any,
-  saveButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: '#FFFFFF' },
-  cancelButton: { height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderWidth: 2, borderColor: '#E53935', cursor: 'pointer' } as any,
-  cancelButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: '#E53935' },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, paddingTop: 50 },
+  title: { fontSize: 20, fontFamily: 'Inter_700Bold' },
+  form: { padding: 20 },
+  label: { fontSize: 13, color: '#86868B', marginBottom: 8, marginTop: 16 },
+  input: { height: 52, backgroundColor: '#F5F5F7', borderRadius: 12, paddingHorizontal: 16, fontSize: 15 },
+  row: { flexDirection: 'row' },
+  radioRow: { flexDirection: 'row', gap: 10 },
+  radio: { flex: 1, height: 44, backgroundColor: '#F5F5F7', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { backgroundColor: '#1976D2' },
+  radioText: { color: '#666', fontFamily: 'Inter_600SemiBold' },
+  radioTextActive: { color: '#FFF' },
+  dropdown: { height: 52, backgroundColor: '#F5F5F7', borderRadius: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dropdownValue: { fontSize: 15, color: '#1D1D1F' },
+  saveBtn: { backgroundColor: '#1976D2', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 40 },
+  saveBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, maxHeight: '70%' },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 20 },
+  schoolItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
+  schoolName: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
+  schoolAddr: { fontSize: 12, color: '#86868B', marginTop: 2 },
+  closeBtn: { marginTop: 20, alignItems: 'center' },
+  closeBtnText: { color: '#FF3B30', fontFamily: 'Inter_600SemiBold' },
 });

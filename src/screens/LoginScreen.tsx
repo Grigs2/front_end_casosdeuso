@@ -1,6 +1,3 @@
-// src/screens/LoginScreen.tsx (VERSÃO COM BACKEND REAL)
-// Substitua o arquivo original por este
-
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
@@ -9,61 +6,62 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logo from '../components/Logo';
-import { autenticarMotorista, autenticarResponsavel } from '../services/authService';
+import { useAppContext } from '../context/AppContext';
 
 export default function LoginScreen({ onLogin }: any) {
   const navigation = useNavigation<any>();
+  const { setCurrentUser } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<'driver' | 'guardian' | 'school'>('driver');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false); // <- novo estado de loading
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Platform.OS === 'web'
-        ? window.alert('Preencha os campos.')
-        : Alert.alert('Atenção', 'Preencha e-mail e senha.');
+      Alert.alert('Atenção', 'Preencha e-mail e senha.');
       return;
     }
 
     setLoading(true);
 
-    // Simula atraso de 1 segundo para carregamento
-    setTimeout(async () => {
-      try {
-        let userData: any = null;
+    // Mock login delay
+    setTimeout(() => {
+      let userData: any = null;
 
-        if (selectedRole === 'driver') {
-          userData = await autenticarMotorista(email.trim(), password);
-          await AsyncStorage.setItem('@loggedUser', JSON.stringify(userData));
-          await AsyncStorage.setItem('@userRole', 'driver');
-        } else if (selectedRole === 'guardian') {
-          userData = await autenticarResponsavel(email.trim(), password);
-          await AsyncStorage.setItem('@loggedUser', JSON.stringify(userData));
-          await AsyncStorage.setItem('@userRole', 'guardian');
-        } else {
-          Alert.alert('Em breve', 'Login de escola ainda não disponível.');
-          setLoading(false);
-          return;
-        }
-
-        onLogin(selectedRole);
-
-        const routeMap: any = {
-          driver: 'DriverMain',
-          guardian: 'GuardianMain',
-          school: 'SchoolMain',
+      if (selectedRole === 'driver') {
+        userData = { 
+          id: 10, 
+          email: email.trim(), 
+          endereco: 'Rua do Motorista, 100', 
+          telefone: '11999998888', 
+          tipoPerfil: 'MOTORISTA' 
         };
-        navigation.navigate(routeMap[selectedRole]);
-      } catch (error) {
-        console.error('Erro no login:', error);
-        Alert.alert('Erro', 'Ocorreu um erro inesperado.');
-      } finally {
+      } else if (selectedRole === 'guardian') {
+        userData = { 
+          id: 11, 
+          email: email.trim(), 
+          endereco: 'Rua do Responsavel, 200', 
+          telefone: '11977776666', 
+          tipoPerfil: 'RESPONSAVEL' 
+        };
+      } else {
+        Alert.alert('Em breve', 'Login de escola ainda não disponível.');
         setLoading(false);
+        return;
       }
+
+      setCurrentUser(userData);
+      onLogin(selectedRole);
+
+      const routeMap: any = {
+        driver: 'DriverMain',
+        guardian: 'GuardianMain',
+        school: 'SchoolMain',
+      };
+      navigation.navigate(routeMap[selectedRole]);
+      setLoading(false);
     }, 1000);
   };
 
@@ -80,10 +78,10 @@ export default function LoginScreen({ onLogin }: any) {
           <View style={styles.brandContainer}>
             <Logo size="large" showText={false} />
             <Text style={styles.title}>Tio da Perua</Text>
+            <Text style={styles.offlineBadge}>MODO OFFLINE (MOCK)</Text>
           </View>
 
           <View style={styles.card}>
-            {/* Seletor de perfil */}
             <View style={styles.segmentedControl}>
               {['driver', 'guardian', 'school'].map((role) => (
                 <TouchableOpacity
@@ -110,18 +108,16 @@ export default function LoginScreen({ onLogin }: any) {
               ))}
             </View>
 
-            {/* Campo e-mail */}
             <TextInput
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="E-mail"
+              placeholder="E-mail (ex: teste@teste.com)"
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
             />
 
-            {/* Campo senha */}
             <View style={styles.passwordContainer}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
@@ -143,7 +139,6 @@ export default function LoginScreen({ onLogin }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* Botão entrar */}
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
@@ -156,7 +151,6 @@ export default function LoginScreen({ onLogin }: any) {
               )}
             </TouchableOpacity>
 
-            {/* Botão cadastrar */}
             <TouchableOpacity
               style={styles.registerButton}
               onPress={() => navigation.navigate('Register', { role: selectedRole })}
@@ -177,6 +171,7 @@ const styles = StyleSheet.create({
   wrapper: { width: '100%', maxWidth: 440, alignSelf: 'center' },
   brandContainer: { alignItems: 'center', marginBottom: 48 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 32, color: '#1D1D1F' },
+  offlineBadge: { fontSize: 10, color: '#FF3B30', fontWeight: 'bold', marginTop: 4 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 32, elevation: 4 },
   segmentedControl: {
     flexDirection: 'row', backgroundColor: '#F5F5F7',
