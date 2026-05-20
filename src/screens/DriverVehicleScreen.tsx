@@ -6,68 +6,57 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DriverLayout from '../components/DriverLayout';
 import { RootStackParamList } from '../navigation';
+import { useAppContext } from '../context/AppContext';
+import { motoristaService } from '../services/motoristaService';
+import { MotoristaDTO } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DriverVehicle'>;
 
 export default function DriverVehicleScreen({ navigation }: Props) {
-  const [modelo, setModelo] = useState('');
-  const [placa, setPlaca] = useState('');
-  const [ano, setAno] = useState('');
-  const [capacidade, setCapacidade] = useState('');
+  const { currentUser, setCurrentUser, showToast } = useAppContext();
+  const driver = currentUser as MotoristaDTO;
 
-  useEffect(() => {
-    loadVehicle();
-  }, []);
-
-  const loadVehicle = async () => {
-    try {
-      const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-      if (!loggedEmail) return;
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const user = users.find((u: any) => u.email === loggedEmail);
-      if (user?.vehicle) {
-        setModelo(user.vehicle.modelo || '');
-        setPlaca(user.vehicle.placa || '');
-        setAno(user.vehicle.ano || '');
-        setCapacidade(user.vehicle.capacidade || '');
-      }
-    } catch {}
-  };
+  const [modelo, setModelo] = useState(driver?.veiculoDTO?.modelo || '');
+  const [placa, setPlaca] = useState(driver?.veiculoDTO?.placa || '');
+  const [ano, setAno] = useState(driver?.veiculoDTO?.ano?.toString() || '');
+  const [capacidade, setCapacidade] = useState(driver?.veiculoDTO?.capacidade?.toString() || '');
+  const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     if (!modelo.trim() || !placa.trim() || !ano.trim() || !capacidade.trim()) {
-      if (Platform.OS === 'web') window.alert('Preencha todos os campos.');
-      else Alert.alert('Atenção', 'Preencha todos os campos.');
+      showToast('Preencha todos os campos.', 'warning');
       return;
     }
 
-    try {
-      const loggedEmail = await AsyncStorage.getItem('@loggedUser');
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const index = users.findIndex((u: any) => u.email === loggedEmail);
+    if (!driver?.id) {
+      showToast('Usuário não identificado.', 'error');
+      return;
+    }
 
-      if (index !== -1) {
-        users[index].vehicle = { modelo, placa: placa.toUpperCase(), ano, capacidade };
-        await AsyncStorage.setItem('@users', JSON.stringify(users));
-        if (Platform.OS === 'web') {
-          window.alert('Veículo salvo!');
-          navigation.navigate('DriverMain');
-        } else {
-          Alert.alert('Sucesso', 'Veículo salvo!', [{ text: 'OK', onPress: () => navigation.navigate('DriverMain') }]);
-        }
-      }
-    } catch {
-      if (Platform.OS === 'web') window.alert('Erro ao salvar.');
+    setLoading(true);
+    try {
+      const updatedDriver = await motoristaService.cadastrarVeiculo(driver.id, {
+        modelo: modelo.trim(),
+        placa: placa.trim().toUpperCase(),
+        ano: parseInt(ano),
+        capacidade: parseInt(capacidade),
+      });
+
+      setCurrentUser(updatedDriver, 'MOTORISTA');
+      showToast('Veículo salvo com sucesso!', 'success');
+      navigation.navigate('DriverMain');
+    } catch (error: any) {
+      console.error('Vehicle Save Error:', error);
+      showToast(error.response?.data?.mensagem || 'Não foi possível salvar os dados do veículo.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,12 +67,63 @@ export default function DriverVehicleScreen({ navigation }: Props) {
             <Text style={styles.title}>Meu Veículo</Text>
             <Text style={styles.subtitle}>Informe os dados do seu veículo</Text>
             <View style={styles.card}>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Modelo</Text><TextInput style={styles.input} value={modelo} onChangeText={setModelo} /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Placa</Text><TextInput style={styles.input} value={placa} onChangeText={setPlaca} /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Ano</Text><TextInput style={styles.input} value={ano} onChangeText={setAno} keyboardType="numeric" /></View>
-              <View style={styles.fieldGroup}><Text style={styles.label}>Capacidade</Text><TextInput style={styles.input} value={capacidade} onChangeText={setCapacidade} keyboardType="numeric" /></View>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}><Text style={styles.saveButtonText}>Salvar</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}><Text style={styles.cancelButtonText}>Cancelar</Text></TouchableOpacity>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Modelo</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={modelo} 
+                  onChangeText={setModelo} 
+                  placeholder="Ex: Mercedes-Benz Sprinter"
+                  editable={!loading}
+                />
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Placa</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={placa} 
+                  onChangeText={setPlaca} 
+                  placeholder="ABC-1234"
+                  autoCapitalize="characters"
+                  editable={!loading}
+                />
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Ano</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={ano} 
+                  onChangeText={setAno} 
+                  keyboardType="numeric" 
+                  placeholder="2022"
+                  editable={!loading}
+                />
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Capacidade</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={capacidade} 
+                  onChangeText={setCapacidade} 
+                  keyboardType="numeric" 
+                  placeholder="20"
+                  editable={!loading}
+                />
+              </View>
+              <TouchableOpacity 
+                style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Salvar</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={() => navigation.goBack()}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -99,8 +139,8 @@ const styles = StyleSheet.create({
   fieldGroup: { marginBottom: 24 },
   label: { fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#1D1D1F', marginBottom: 12 },
   input: { fontFamily: 'Inter_400Regular', fontSize: 17, height: 52, borderRadius: 12, backgroundColor: '#F5F5F7', paddingHorizontal: 16 },
-  saveButton: { height: 52, borderRadius: 12, backgroundColor: '#1976D2', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' } as any,
+  saveButton: { height: 52, borderRadius: 12, backgroundColor: '#1976D2', alignItems: 'center', justifyContent: 'center' },
   saveButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: '#FFFFFF' },
-  cancelButton: { height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderWidth: 2, borderColor: '#E53935', cursor: 'pointer' } as any,
+  cancelButton: { height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderWidth: 2, borderColor: '#E53935' },
   cancelButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: '#E53935' },
 });

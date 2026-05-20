@@ -1,37 +1,68 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAppContext } from '../context/AppContext';
 import GuardianLayout from '../components/GuardianLayout';
+import { responsavelService } from '../services/responsavelService';
+import { ResponsavelDTO, SolicitacaoDTO, DependenteDTO } from '../types';
 
 export default function GuardianDependentsScreen() {
   const navigation = useNavigation<any>();
-  const { dependents, solicitations, endLink, currentUser, schools } = useAppContext();
+  const isFocused = useIsFocused();
+  const { currentUser, pendingSolicitations, updateSolicitations } = useAppContext();
   
-  const myDependents = dependents.filter(d => d.id_responsavel === currentUser?.id || d.id_responsavel === 11);
+  const guardian = currentUser as ResponsavelDTO;
+  const [loading, setLoading] = useState(false);
 
-  const handleEndLink = (studentId: number) => {
-    const sol = solicitations.find(s => s.id_dependente === studentId && s.aceito);
-    if (sol) {
-      Alert.alert(
-        'Encerrar Vínculo',
-        'Tem certeza que deseja encerrar o transporte com este motorista?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Encerrar', 
-            style: 'destructive', 
-            onPress: () => {
-              endLink(sol.id);
-              Alert.alert('Sucesso', 'Vínculo encerrado. O aluno agora está disponível para outros motoristas.');
-            } 
-          }
-        ]
-      );
-    } else {
-      Alert.alert('Info', 'Este dependente não possui vínculo ativo com motorista.');
+  useEffect(() => {
+    if (isFocused && guardian?.id) {
+      loadData();
     }
+  }, [isFocused]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const sols = await responsavelService.listarSolicitacoes(guardian.id!);
+      updateSolicitations(sols);
+    } catch (error) {
+      console.error('Error loading solicitations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: DependenteDTO }) => {
+    const activeSol = pendingSolicitations.find(s => s.dependenteId === item.id && s.aceito && !s.dataFim);
+    const pendingSol = pendingSolicitations.find(s => s.dependenteId === item.id && !s.respondido);
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardInfo}>
+          <Text style={styles.studentName}>{item.nome}</Text>
+          <Text style={styles.schoolName}>Escola: {item.escola?.nome || 'Não vinculada'}</Text>
+          <View style={styles.statusBadge}>
+            <Text style={[
+              styles.statusText, 
+              activeSol ? styles.statusActive : pendingSol ? styles.statusPending : styles.statusInactive
+            ]}>
+              {activeSol ? 'Vínculo Ativo' : pendingSol ? 'Solicitação Pendente' : 'Sem Transporte'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => navigation.navigate('GuardianDependentForm', { dependentId: item.id })}
+          >
+            <Feather name="edit-2" size={18} color="#1976D2" />
+            <Text style={styles.editText}>Editar Informações</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -42,53 +73,23 @@ export default function GuardianDependentsScreen() {
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => navigation.navigate('GuardianDependentForm')}
+            disabled={loading}
           >
             <Feather name="plus" size={20} color="#FFF" />
             <Text style={styles.addButtonText}>Novo</Text>
           </TouchableOpacity>
         </View>
 
+        {loading && <ActivityIndicator color="#1976D2" style={{ marginBottom: 20 }} />}
+
         <FlatList
-          data={myDependents}
-          keyExtractor={(item) => item.id.toString()}
+          data={guardian?.dependentes || []}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => {
-            const school = schools.find(s => s.id === item.id_escola);
-            const activeSol = solicitations.find(s => s.id_dependente === item.id && s.aceito);
-            
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.studentName}>{item.nome}</Text>
-                  <Text style={styles.schoolName}>{school?.nome}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={[styles.statusText, activeSol ? styles.statusActive : styles.statusInactive]}>
-                      {activeSol ? 'Vínculo Ativo' : 'Sem Transporte'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.actions}>
-                  <TouchableOpacity 
-                    style={styles.editButton}
-                    onPress={() => navigation.navigate('GuardianDependentForm', { dependentId: item.id })}
-                  >
-                    <Feather name="edit-2" size={18} color="#1976D2" />
-                  </TouchableOpacity>
-
-                  {activeSol && (
-                    <TouchableOpacity 
-                      style={styles.deleteButton}
-                      onPress={() => handleEndLink(item.id)}
-                    >
-                      <Feather name="link-2" size={18} color="#FF3B30" />
-                      <Text style={styles.deleteText}>Encerrar Vínculo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            );
-          }}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            !loading ? <Text style={styles.emptyText}>Nenhum dependente cadastrado.</Text> : null
+          }
         />
       </View>
     </GuardianLayout>
@@ -109,9 +110,12 @@ const styles = StyleSheet.create({
   statusBadge: { marginTop: 12 },
   statusText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
   statusActive: { color: '#34C759' },
-  statusInactive: { color: '#FF9500' },
+  statusPending: { color: '#FF9500' },
+  statusInactive: { color: '#86868B' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F2F2F7', paddingTop: 12 },
-  editButton: { padding: 8 },
+  editButton: { padding: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  editText: { color: '#1976D2', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   deleteButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   deleteText: { color: '#FF3B30', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  emptyText: { textAlign: 'center', color: '#86868B', marginTop: 40 },
 });

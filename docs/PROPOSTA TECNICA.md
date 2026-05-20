@@ -50,7 +50,7 @@ O fluxo de solicitações foi invertido para se alinhar à API real: **O Motoris
 2. **Criar Viagem:** Painel para abertura de uma nova viagem definindo o período. Gera o `id_viagem` utilizado como base de dados.
 3. **Buscar Dependentes Disponíveis:** Tela de captação que consulta dependentes vinculados à escola do seu trajeto que estão sem transporte (`GET /Viagem/DependentesDisponiveis`), permitindo disparar a solicitação de vínculo.
 4. **Controle de Trajeto (Timeline):** Tela operacional com a ordenação das paradas do dia. Permite gerenciar o status da rota e contém o botão de direcionamento para a tela exclusiva de presença.
-5. **Tela de Chamada Dedicada (Separada da Timeline):** Interface limpa exibindo os alunos da parada atual. Permite alternar os status de presença de forma visual e intuitiva (Botões coloridos e destacados para Embarque e Desembarque).
+5. **Tela de Chamada Dedicada (Separada da Timeline):** Interface limpa exibindo os alunos da parada atual. Permite alternar os status de presença de forma visual e intuitiva (Botões coloridos e destacados para Embarque, Desembarque e falta).
 
 ---
 

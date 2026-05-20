@@ -21,21 +21,15 @@ const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
 const MENU_ITEMS: { key: string; label: string; icon: FeatherIconName }[] = [
-  { key: 'DriverMain', label: 'Home', icon: 'home' },
-  { key: 'DriverAttendance', label: 'Chamada', icon: 'clipboard' },
-  { key: 'DriverTrips', label: 'Roteiro', icon: 'map-pin' },
-  { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
-  { key: 'DriverProfile', label: 'Meu Cadastro', icon: 'user' },
-  { key: 'DriverVehicle', label: 'Meu Veículo', icon: 'truck' },
-  { key: 'DriverHistory', label: 'Histórico', icon: 'clock' },
+  { key: 'SchoolMain', label: 'Home', icon: 'home' },
   { key: 'Sair', label: 'Sair', icon: 'log-out' },
 ];
 
-interface DriverLayoutProps {
+interface SchoolLayoutProps {
   children: React.ReactNode;
 }
 
-export default function DriverLayout({ children }: DriverLayoutProps) {
+export default function SchoolLayout({ children }: SchoolLayoutProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -58,10 +52,6 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
 
   const handleMenuPress = (key: string) => {
     closeDrawer();
-    if (key === 'Home') {
-      navigation.navigate('DriverMain');
-      return;
-    }
     if (key === 'Sair') {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       return;

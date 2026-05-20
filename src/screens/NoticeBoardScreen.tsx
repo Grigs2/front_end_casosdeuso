@@ -1,29 +1,57 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import DriverLayout from '../components/DriverLayout';
 import GuardianLayout from '../components/GuardianLayout';
 import { useAppContext } from '../context/AppContext';
+import { notificacaoService } from '../services/notificacaoService';
+import { NotificacaoDTO } from '../types';
 
 export default function NoticeBoardScreen() {
-  const { notifications, currentUser } = useAppContext();
-  
-  const myNotifications = notifications
-    .filter(n => n.destinatarioId === currentUser?.id || n.destinatarioId === 11)
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  const isFocused = useIsFocused();
+  const { currentUser, notifications, updateNotifications } = useAppContext();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isFocused && currentUser?.id) {
+      loadNotifications();
+    }
+  }, [isFocused]);
+
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const data = await notificacaoService.listar(currentUser!.id!);
+      updateNotifications(data);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sortedNotifications = [...notifications].sort((a, b) => 
+    new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime()
+  );
 
   const content = (
     <View style={styles.container}>
       <Text style={styles.title}>Mural de Avisos</Text>
+      
+      {loading && <ActivityIndicator color="#1976D2" style={{ marginBottom: 20 }} />}
+
       <FlatList
-        data={myNotifications}
-        keyExtractor={(item) => item.id.toString()}
+        data={sortedNotifications}
+        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="bell-off" size={48} color="#E5E5EA" />
-            <Text style={styles.emptyText}>Nenhum aviso no momento.</Text>
-          </View>
+          !loading ? (
+            <View style={styles.empty}>
+              <Feather name="bell-off" size={48} color="#E5E5EA" />
+              <Text style={styles.emptyText}>Nenhum aviso no momento.</Text>
+            </View>
+          ) : null
         }
         renderItem={({ item }) => (
           <View style={[styles.card, !item.visto && styles.unreadCard]}>
@@ -32,7 +60,9 @@ export default function NoticeBoardScreen() {
                 <Feather name="bell" size={16} color="#1976D2" />
                 <Text style={styles.senderText}>{item.titulo}</Text>
               </View>
-              <Text style={styles.dateText}>{new Date(item.data).toLocaleString()}</Text>
+              <Text style={styles.dateText}>
+                {item.data ? new Date(item.data).toLocaleString() : 'N/A'}
+              </Text>
             </View>
             <Text style={styles.contentTxt}>{item.mensagem}</Text>
             {!item.visto && <View style={styles.unreadDot} />}
@@ -42,7 +72,9 @@ export default function NoticeBoardScreen() {
     </View>
   );
 
-  if (currentUser?.tipoPerfil === 'MOTORISTA') {
+  const role = (currentUser as any)?.usuarioDTO?.tipoPerfil || (currentUser as any)?.usuario?.tipoPerfil || (currentUser as any)?.tipoPerfil;
+
+  if (role === 'MOTORISTA') {
     return <DriverLayout>{content}</DriverLayout>;
   }
 

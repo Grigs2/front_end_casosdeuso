@@ -9,11 +9,15 @@ import {
   Platform,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../navigation';
+import { motoristaService } from '../services/motoristaService';
+import { responsavelService } from '../services/responsavelService';
+import { escolaService } from '../services/escolaService';
+import { useAppContext } from '../context/AppContext';
 
 const ROLE_LABELS: Record<string, string> = {
   driver: 'Novo Motorista',
@@ -25,49 +29,105 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation, route }: Props) {
   const { role } = route.params;
+  const { showToast } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [cnh, setCnh] = useState('');
+  const [admResponsavel, setAdmResponsavel] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const clearForm = () => {
+    setEmail('');
+    setPassword('');
+    setAddress('');
+    setPhone('');
+    setName('');
+    setCpf('');
+    setBirthDate('');
+    setCnh('');
+    setAdmResponsavel('');
+  };
 
   const handleSave = async () => {
-    if (!email.trim() || !password.trim() || !address.trim() || !phone.trim()) {
-      if (Platform.OS === 'web') window.alert('Preencha todos os campos.');
-      else Alert.alert('Atenção', 'Preencha todos os campos.');
+    console.log('[RegisterScreen] Botão Salvar pressionado');
+    if (!email.trim() || !password.trim() || !address.trim() || !phone.trim() || !name.trim() || !cpf.trim() || !birthDate.trim()) {
+      showToast('Preencha todos os campos obrigatórios.', 'warning');
       return;
     }
 
+    setLoading(true);
+    console.log('[RegisterScreen] Submit iniciado para:', email, 'Role:', role);
+
     try {
-      const stored = await AsyncStorage.getItem('@users');
-      const users = stored ? JSON.parse(stored) : [];
-      const exists = users.some((u: any) => u.email.toLowerCase() === email.trim().toLowerCase());
-
-      if (exists) {
-        if (Platform.OS === 'web') window.alert('E-mail já cadastrado.');
-        else Alert.alert('Atenção', 'E-mail já cadastrado.');
-        return;
+      if (role === 'driver') {
+        if (!cnh.trim()) {
+          showToast('Preencha a CNH.', 'warning');
+          setLoading(false);
+          return;
+        }
+        console.log('[RegisterScreen] Chamando motoristaService.cadastrar...');
+        await motoristaService.cadastrar({
+          nome: name,
+          dataNascimento: birthDate,
+          cpf,
+          cnh,
+          usuarioDTO: {
+            email,
+            senha: password,
+            endereco: address,
+            telefone: phone,
+            tipoPerfil: 'MOTORISTA'
+          }
+        });
+      } else if (role === 'guardian') {
+        console.log('[RegisterScreen] Chamando responsavelService.cadastrar...');
+        await responsavelService.cadastrar({
+          nome: name,
+          cpf,
+          dataNascimento: birthDate,
+          usuario: {
+            email,
+            senha: password,
+            endereco: address,
+            telefone: phone,
+            tipoPerfil: 'RESPONSAVEL'
+          }
+        });
+      } else if (role === 'school') {
+        if (!admResponsavel.trim()) {
+          showToast('Preencha o Administrador Responsável.', 'warning');
+          setLoading(false);
+          return;
+        }
+        console.log('[RegisterScreen] Chamando escolaService.cadastrar...');
+        await escolaService.cadastrar({
+          nome: name,
+          admResponsavel,
+          usuarioDTO: {
+            email,
+            senha: password,
+            endereco: address,
+            telefone: phone,
+            tipoPerfil: 'ESCOLA'
+          }
+        });
       }
 
-      users.push({
-        email: email.trim().toLowerCase(),
-        password,
-        address: address.trim(),
-        phone: phone.trim(),
-        role,
-      });
-
-      await AsyncStorage.setItem('@users', JSON.stringify(users));
-
-      if (Platform.OS === 'web') {
-        window.alert('Cadastro realizado com sucesso!');
-        navigation.navigate('Login');
-      } else {
-        Alert.alert('Sucesso', 'Cadastro realizado!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
-      }
-    } catch {
-      if (Platform.OS === 'web') window.alert('Erro ao salvar.');
-      else Alert.alert('Erro', 'Não foi possível salvar.');
+      console.log('[RegisterScreen] Cadastro bem-sucedido');
+      showToast('Cadastro realizado com sucesso!', 'success');
+      clearForm();
+      navigation.navigate('Login');
+    } catch (error: any) {
+      console.error('[RegisterScreen] Erro no cadastro:', error);
+      showToast(error.response?.data?.mensagem || 'Não foi possível realizar o cadastro.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,7 +138,6 @@ export default function RegisterScreen({ navigation, route }: Props) {
             <View style={styles.header}>
               <TouchableOpacity
                   onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login')}
-                  style={{ cursor: 'pointer' } as any}
               >
                 <Feather name="arrow-left" size={24} color="#1D1D1F" />
               </TouchableOpacity>
@@ -86,6 +145,10 @@ export default function RegisterScreen({ navigation, route }: Props) {
             <Text style={styles.title}>{ROLE_LABELS[role]}</Text>
             <Text style={styles.subtitle}>Preencha os dados para criar sua conta</Text>
             <View style={styles.card}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Nome Completo</Text>
+                <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Nome" />
+              </View>
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>E-mail</Text>
                 <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="seu@email.com" keyboardType="email-address" autoCapitalize="none" />
@@ -100,6 +163,26 @@ export default function RegisterScreen({ navigation, route }: Props) {
                 </View>
               </View>
               <View style={styles.fieldGroup}>
+                <Text style={styles.label}>CPF</Text>
+                <TextInput style={styles.input} value={cpf} onChangeText={setCpf} placeholder="000.000.000-00" />
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Data de Nascimento</Text>
+                <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" />
+              </View>
+              {role === 'driver' && (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>CNH</Text>
+                  <TextInput style={styles.input} value={cnh} onChangeText={setCnh} placeholder="Número da CNH" />
+                </View>
+              )}
+              {role === 'school' && (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Administrador Responsável</Text>
+                  <TextInput style={styles.input} value={admResponsavel} onChangeText={setAdmResponsavel} placeholder="Nome do Responsável" />
+                </View>
+              )}
+              <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Endereço</Text>
                 <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Rua, número, bairro" />
               </View>
@@ -107,8 +190,12 @@ export default function RegisterScreen({ navigation, route }: Props) {
                 <Text style={styles.label}>Telefone</Text>
                 <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="(00) 00000-0000" keyboardType="phone-pad" />
               </View>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Salvar</Text>
+              <TouchableOpacity 
+                style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+                onPress={handleSave}
+                disabled={loading}
+              >
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Salvar</Text>}
               </TouchableOpacity>
             </View>
           </View>

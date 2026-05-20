@@ -1,45 +1,58 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList, ActivityIndicator } from 'react-native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import DriverLayout from '../components/DriverLayout';
-import { RootStackParamList } from '../navigation';
+import { useAppContext } from '../context/AppContext';
+import { viagemService } from '../services/viagemService';
+import { DependenteDTO, MotoristaDTO } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'DriverStudents'>;
+export default function DriverStudentsScreen() {
+  const isFocused = useIsFocused();
+  const { currentUser } = useAppContext();
+  const driver = currentUser as MotoristaDTO;
 
-export default function DriverStudentsScreen({ navigation }: Props) {
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<DependenteDTO[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const loadStudents = useCallback(async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@accepted_students');
-      const accepted = stored ? JSON.parse(stored) : [];
-      setStudents(accepted);
-    } catch (error) {
-      console.error(error);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
+  useEffect(() => {
+    if (isFocused && driver?.id) {
       loadStudents();
-    }, [loadStudents])
-  );
+    }
+  }, [isFocused]);
 
-  const renderStudentCard = ({ item }: { item: any }) => (
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      // Since we don't have a "Listar Viagens" endpoint, we try to fetch students 
+      // from a default/known trip or simply handle the absence of a list.
+      // In a real scenario, we would iterate through all driver's trips.
+      
+      const defaultTripId = 1; // Simulation
+      const tripDetail = await viagemService.visualizar(defaultTripId);
+      
+      if (tripDetail && tripDetail.dependentes) {
+        setStudents(tripDetail.dependentes);
+      }
+    } catch (error) {
+      console.error('Error loading students:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStudentCard = ({ item }: { item: DependenteDTO }) => (
     <View style={styles.card}>
       <View style={styles.avatar}>
         <Feather name="user" size={24} color="#1976D2" />
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>{item.nome}</Text>
-        <Text style={styles.detail}>Responsável: {item.responsavel}</Text>
-        <Text style={styles.detail}>Escola: {item.escola}</Text>
+        <Text style={styles.detail}>Período: {item.periodo.replace('_', ' ')}</Text>
+        <Text style={styles.detail}>Escola: {item.escola?.nome || 'N/A'}</Text>
       </View>
       <View style={styles.statusBadge}>
-        <Text style={styles.statusText}>Vinculado</Text>
+        <Text style={styles.statusText}>Ativo</Text>
       </View>
     </View>
   );
@@ -48,16 +61,21 @@ export default function DriverStudentsScreen({ navigation }: Props) {
     <DriverLayout>
       <View style={styles.container}>
         <Text style={styles.title}>Meus Passageiros</Text>
+        
+        {loading && <ActivityIndicator color="#1976D2" style={{ marginBottom: 20 }} />}
+
         <FlatList
           data={students}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           renderItem={renderStudentCard}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Feather name="users" size={48} color="#CCC" />
-              <Text style={styles.emptyText}>Você ainda não possui passageiros vinculados.</Text>
-            </View>
+            !loading ? (
+              <View style={styles.empty}>
+                <Feather name="users" size={48} color="#CCC" />
+                <Text style={styles.emptyText}>Nenhum passageiro vinculado encontrado.</Text>
+              </View>
+            ) : null
           }
         />
       </View>

@@ -32,9 +32,19 @@ import { RootStackParamList } from './src/navigation';
 
 SplashScreen.preventAutoHideAsync();
 
+import SchoolMainScreen from './src/screens/SchoolMainScreen';
+
+import DriverAttendanceScreen from './src/screens/DriverAttendanceScreen';
+import DriverTripsScreen from './src/screens/DriverTripsScreen';
+import DriverTripDetailsScreen from './src/screens/DriverTripDetailsScreen';
+import DriverAvailableDependentsScreen from './src/screens/DriverAvailableDependentsScreen';
+import DriverHistoryScreen from './src/screens/DriverHistoryScreen';
+import GuardianPlansScreen from './src/screens/GuardianPlansScreen';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 import { AppProvider } from './src/context/AppContext';
+import Toast from './src/components/Toast';
 
 export default function App() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -68,21 +78,21 @@ export default function App() {
           <NavigationContainer>
             <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Login">
-                {(props) => <LoginScreen {...props} onLogin={(role) => setUserRole(role)} />}
+                {(props) => <LoginScreen {...props} onLogin={(role: UserRole) => setUserRole(role)} />}
               </Stack.Screen>
               <Stack.Screen name="Register" component={RegisterScreen} />
               <Stack.Screen name="DriverMain" component={DriverMainScreen} />
-              <Stack.Screen name="DriverAttendance">
-                {() => <DriverLayout><PlaceholderScreen /></DriverLayout>}
-              </Stack.Screen>
-              <Stack.Screen name="DriverRoute" component={DriverRouteViewScreen} />
+              <Stack.Screen name="DriverAttendance" component={DriverAttendanceScreen} />
+              <Stack.Screen name="DriverTrips" component={DriverTripsScreen} />
+              <Stack.Screen name="DriverTripDetails" component={DriverTripDetailsScreen} />
+              <Stack.Screen name="DriverAvailableDependents" component={DriverAvailableDependentsScreen} />
               <Stack.Screen name="DriverAttendanceDetail" component={DriverAttendanceDetailScreen} />
               <Stack.Screen name="DriverStudents" component={DriverStudentsScreen} />
               <Stack.Screen name="DriverInvites" component={DriverInvitesScreen} />
               <Stack.Screen name="DriverSearchStudents" component={DriverSearchStudentsScreen} />
               <Stack.Screen name="DriverProfile" component={ProfileScreen} />
               <Stack.Screen name="DriverVehicle" component={DriverVehicleScreen} />
-              <Stack.Screen name="DriverHistory" component={HistoryScreen} />
+              <Stack.Screen name="DriverHistory" component={DriverHistoryScreen} />
               <Stack.Screen name="DriverHelp">
                 {() => <DriverLayout><PlaceholderScreen /></DriverLayout>}
               </Stack.Screen>
@@ -94,15 +104,16 @@ export default function App() {
               <Stack.Screen name="NoticeBoard" component={NoticeBoardScreen} />
               <Stack.Screen name="GuardianDependents" component={GuardianDependentsScreen} />
               <Stack.Screen name="GuardianDependentForm" component={GuardianDependentFormScreen} />
-              <Stack.Screen name="GuardianPlans" component={PlaceholderScreen} />
+              <Stack.Screen name="GuardianPlans" component={GuardianPlansScreen} />
               <Stack.Screen name="GuardianProfile" component={ProfileScreen} />
               <Stack.Screen name="GuardianHistory" component={HistoryScreen} />
               <Stack.Screen name="GuardianHelp">
                 {() => <GuardianLayout><PlaceholderScreen /></GuardianLayout>}
               </Stack.Screen>
-              <Stack.Screen name="SchoolMain" component={PlaceholderScreen} />
+              <Stack.Screen name="SchoolMain" component={SchoolMainScreen} />
             </Stack.Navigator>
           </NavigationContainer>
+          <Toast />
           <StatusBar style="dark" />
         </View>
       </AppProvider>

@@ -16,7 +16,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DriverLayout from '../components/DriverLayout';
 import { RootStackParamList } from '../navigation';
-import { SolicitacaoVinculo } from '../types';
+
+interface SolicitacaoVinculo {
+  id: number;
+  dependenteNome: string;
+  responsavelNome: string;
+  status: string;
+  dataSolicitacao: string;
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

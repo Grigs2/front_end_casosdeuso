@@ -11,25 +11,24 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import GuardianLayout from '../components/GuardianLayout';
 import { RootStackParamList } from '../navigation';
+import { useAppContext } from '../context/AppContext';
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
-type GuardianScreenKey = 'GuardianTracking' | 'GuardianDependents' | 'GuardianPlans' | 'GuardianProfile' | 'GuardianHistory' | 'GuardianHelp' | 'GuardianSearchDriver' | 'NoticeBoard' | 'GuardianInvites';
+type GuardianScreenKey = 'GuardianTracking' | 'GuardianDependents' | 'GuardianPlans' | 'GuardianProfile' | 'GuardianInvites';
 
 const FEATURES: { key: GuardianScreenKey; label: string; icon: FeatherIconName }[] = [
   { key: 'GuardianTracking', label: 'Monitoramento', icon: 'navigation' },
   { key: 'GuardianInvites', label: 'Convites', icon: 'mail' },
   { key: 'GuardianDependents', label: 'Dependentes', icon: 'users' },
-  { key: 'NoticeBoard', label: 'Mural de Avisos', icon: 'bell' },
   { key: 'GuardianPlans', label: 'Planos', icon: 'credit-card' },
   { key: 'GuardianProfile', label: 'Meu Cadastro', icon: 'user' },
-  { key: 'GuardianHistory', label: 'Histórico', icon: 'clock' },
-  { key: 'GuardianHelp', label: 'Ajuda', icon: 'help-circle' },
 ];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GuardianMain'>;
 
 export default function GuardianMainScreen({ navigation }: Props) {
+  const { currentUser } = useAppContext();
   const handleFeaturePress = (key: GuardianScreenKey) => {
     navigation.navigate(key);
   };
@@ -37,29 +36,36 @@ export default function GuardianMainScreen({ navigation }: Props) {
   return (
       <GuardianLayout>
         <StatusBar barStyle="dark-content" />
-        <ScrollView contentContainerStyle={styles.gridContainer}>
-          <Text style={styles.greeting}>Olá, Responsável!</Text>
-          <View style={styles.grid}>
-            {FEATURES.map(({ key, label, icon }) => (
-                <TouchableOpacity
-                    key={key}
-                    style={styles.featureCard}
-                    onPress={() => handleFeaturePress(key)}
-                    activeOpacity={0.7}
-                >
-                  <View style={styles.iconContainer}>
-                    <Feather name={icon} size={32} color="#1976D2" />
-                  </View>
-                  <Text style={styles.featureLabel}>{label}</Text>
-                </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+        <View style={styles.webWrapper}>
+          <ScrollView contentContainerStyle={styles.gridContainer}>
+            <Text style={styles.greeting}>Olá, {currentUser?.nome || 'Responsável'}!</Text>
+            <View style={styles.grid}>
+              {FEATURES.map(({ key, label, icon }) => (
+                  <TouchableOpacity
+                      key={key}
+                      style={styles.featureCard}
+                      onPress={() => handleFeaturePress(key)}
+                      activeOpacity={0.7}
+                  >
+                    <View style={styles.iconContainer}>
+                      <Feather name={icon} size={32} color="#1976D2" />
+                    </View>
+                    <Text style={styles.featureLabel}>{label}</Text>
+                  </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
       </GuardianLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  webWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    width: '100%',
+  },
   greeting: {
     fontFamily: 'Inter_700Bold',
     fontSize: 24,
@@ -69,6 +75,8 @@ const styles = StyleSheet.create({
   gridContainer: {
     padding: 20,
     paddingTop: 24,
+    width: '100%',
+    maxWidth: 800,
   },
   grid: {
     flexDirection: 'row',

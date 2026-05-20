@@ -6,74 +6,104 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DriverLayout from '../components/DriverLayout';
 import GuardianLayout from '../components/GuardianLayout';
+import SchoolLayout from '../components/SchoolLayout';
 import { RootStackParamList } from '../navigation';
-import { UserRole } from '../types';
+import { useAppContext } from '../context/AppContext';
+import { motoristaService } from '../services/motoristaService';
+import { responsavelService } from '../services/responsavelService';
+import { escolaService } from '../services/escolaService';
+import PasswordConfirmationModal from '../components/PasswordConfirmationModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DriverProfile' | 'GuardianProfile'>;
 
-export default function ProfileScreen({ navigation, route }: Props) {
-  const [role, setRole] = useState<UserRole>(null);
+export default function ProfileScreen({ navigation }: Props) {
+  const { currentUser, userRole, setCurrentUser, showToast } = useAppContext();
+  
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
   const [endereco, setEndereco] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    try {
-      const storedRole = await AsyncStorage.getItem('@userRole') as UserRole;
-      const loggedUser = await AsyncStorage.getItem('@loggedUser');
-      setRole(storedRole);
-
-      if (loggedUser) {
-        const user = JSON.parse(loggedUser);
-        // Ajusta mapeamento dependendo se é MotoristaDTO ou ResponsavelDTO
-        setNome(user.nome || '');
-        setEmail(user.usuarioDTO?.email || user.usuario?.email || '');
-        setTelefone(user.usuarioDTO?.telefone || user.usuario?.telefone || '');
-        setEndereco(user.usuarioDTO?.endereco || user.usuario?.endereco || '');
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+    if (currentUser) {
+      setNome(currentUser.nome || '');
+      const user = (currentUser as any).usuarioDTO || (currentUser as any).usuario;
+      setEmail(user?.email || '');
+      setTelefone(user?.telefone || '');
+      setEndereco(user?.endereco || '');
     }
+  }, [currentUser]);
+
+  const handlePreSave = () => {
+    if (!nome.trim() || !telefone.trim() || !endereco.trim()) {
+      showToast('Por favor, preencha todos os campos.', 'error');
+      return;
+    }
+    setShowPasswordModal(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (password: string) => {
+    setLoading(true);
     try {
-      const loggedUserStr = await AsyncStorage.getItem('@loggedUser');
-      if (loggedUserStr) {
-        const user = JSON.parse(loggedUserStr);
-        
-        // Atualiza os campos no objeto
-        user.nome = nome;
-        if (user.usuarioDTO) {
-          user.usuarioDTO.telefone = telefone;
-          user.usuarioDTO.endereco = endereco;
-        } else if (user.usuario) {
-          user.usuario.telefone = telefone;
-          user.usuario.endereco = endereco;
-        }
-
-        await AsyncStorage.setItem('@loggedUser', JSON.stringify(user));
-        Alert.alert('Sucesso', 'Cadastro atualizado com sucesso!');
+      let result;
+      if (userRole === 'MOTORISTA') {
+        const motorista = currentUser as any;
+        result = await motoristaService.alterarInfos({
+          ...motorista,
+          nome: nome.trim(),
+          usuarioDTO: {
+            ...motorista.usuarioDTO,
+            telefone: telefone.trim(),
+            endereco: endereco.trim(),
+            senha: password,
+          }
+        });
+      } else if (userRole === 'RESPONSAVEL') {
+        const responsavel = currentUser as any;
+        result = await responsavelService.alterarInfos({
+          ...responsavel,
+          nome: nome.trim(),
+          usuario: {
+            ...responsavel.usuario,
+            telefone: telefone.trim(),
+            endereco: endereco.trim(),
+            senha: password,
+          }
+        });
+      } else if (userRole === 'ESCOLA') {
+        const escola = currentUser as any;
+        result = await escolaService.alterarInfos({
+          ...escola,
+          nome: nome.trim(),
+          usuarioDTO: {
+            ...escola.usuarioDTO,
+            telefone: telefone.trim(),
+            endereco: endereco.trim(),
+            senha: password,
+          }
+        });
       }
-    } catch (e) {
-      Alert.alert('Erro', 'Não foi possível salvar as alterações.');
+
+      if (result) {
+        setCurrentUser(result, userRole);
+        showToast('Informações atualizadas com sucesso!', 'success');
+        setShowPasswordModal(false);
+      }
+    } catch (error: any) {
+      console.error('Update Profile Error:', error);
+      showToast(error.response?.data?.mensagem || 'Falha ao atualizar cadastro. Verifique sua senha.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,6 +131,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
                 value={nome} 
                 onChangeText={setNome} 
                 placeholder="Seu nome"
+                editable={!loading}
               />
             </View>
           </View>
@@ -127,6 +158,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
                 onChangeText={setTelefone} 
                 keyboardType="phone-pad"
                 placeholder="(00) 00000-0000"
+                editable={!loading}
               />
             </View>
           </View>
@@ -140,20 +172,37 @@ export default function ProfileScreen({ navigation, route }: Props) {
                 value={endereco} 
                 onChangeText={setEndereco} 
                 placeholder="Rua, número, bairro..."
+                editable={!loading}
               />
             </View>
           </View>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Salvar Alterações</Text>
-            <Feather name="check" size={20} color="#FFF" />
+          <TouchableOpacity 
+            style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+            onPress={handlePreSave}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#FFF" /> : (
+              <>
+                <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+                <Feather name="check" size={20} color="#FFF" />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <PasswordConfirmationModal
+        visible={showPasswordModal}
+        onConfirm={handleSave}
+        onCancel={() => setShowPasswordModal(false)}
+        loading={loading}
+      />
     </KeyboardAvoidingView>
   );
 
-  if (role === 'driver') return <DriverLayout>{content}</DriverLayout>;
+  if (userRole === 'MOTORISTA') return <DriverLayout>{content}</DriverLayout>;
+  if (userRole === 'ESCOLA') return <SchoolLayout>{content}</SchoolLayout>;
   return <GuardianLayout>{content}</GuardianLayout>;
 }
 

@@ -21,15 +21,12 @@ const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
 const MENU_ITEMS: { key: string; label: string; icon: FeatherIconName }[] = [
-  { key: 'Home', label: 'Home', icon: 'home' },
+  { key: 'GuardianMain', label: 'Home', icon: 'home' },
   { key: 'GuardianTracking', label: 'Monitoramento', icon: 'navigation' },
   { key: 'GuardianInvites', label: 'Convites', icon: 'mail' },
   { key: 'GuardianDependents', label: 'Dependentes', icon: 'users' },
-  { key: 'NoticeBoard', label: 'Avisos', icon: 'bell' },
   { key: 'GuardianPlans', label: 'Planos', icon: 'credit-card' },
   { key: 'GuardianProfile', label: 'Meu Cadastro', icon: 'user' },
-  { key: 'GuardianHistory', label: 'Histórico', icon: 'clock' },
-  { key: 'GuardianHelp', label: 'Ajuda', icon: 'help-circle' },
   { key: 'Sair', label: 'Sair', icon: 'log-out' },
 ];
 

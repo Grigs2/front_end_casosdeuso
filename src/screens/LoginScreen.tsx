@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Logo from '../components/Logo';
 import { useAppContext } from '../context/AppContext';
+import { authService } from '../services/authService';
 
 export default function LoginScreen({ onLogin }: any) {
   const navigation = useNavigation<any>();
-  const { setCurrentUser } = useAppContext();
+  const { setCurrentUser, showToast } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<'driver' | 'guardian' | 'school'>('driver');
@@ -19,50 +20,53 @@ export default function LoginScreen({ onLogin }: any) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    console.log('[LoginScreen] Botão pressionado');
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Atenção', 'Preencha e-mail e senha.');
+      showToast('Preencha e-mail e senha.', 'warning');
       return;
     }
 
     setLoading(true);
+    console.log('[LoginScreen] Submit iniciado para:', email, 'Perfil:', selectedRole);
 
-    // Mock login delay
-    setTimeout(() => {
+    try {
       let userData: any = null;
+      let roleKey: 'MOTORISTA' | 'RESPONSAVEL' | 'ESCOLA' = 'MOTORISTA';
 
+      console.log('[LoginScreen] Chamando authService...');
       if (selectedRole === 'driver') {
-        userData = { 
-          id: 10, 
-          email: email.trim(), 
-          endereco: 'Rua do Motorista, 100', 
-          telefone: '11999998888', 
-          tipoPerfil: 'MOTORISTA' 
-        };
+        userData = await authService.loginMotorista(email.trim(), password.trim());
+        roleKey = 'MOTORISTA';
       } else if (selectedRole === 'guardian') {
-        userData = { 
-          id: 11, 
-          email: email.trim(), 
-          endereco: 'Rua do Responsavel, 200', 
-          telefone: '11977776666', 
-          tipoPerfil: 'RESPONSAVEL' 
-        };
-      } else {
-        Alert.alert('Em breve', 'Login de escola ainda não disponível.');
-        setLoading(false);
-        return;
+        userData = await authService.loginResponsavel(email.trim(), password.trim());
+        roleKey = 'RESPONSAVEL';
+      } else if (selectedRole === 'school') {
+        userData = await authService.loginEscola(email.trim(), password.trim());
+        roleKey = 'ESCOLA';
       }
 
-      setCurrentUser(userData);
-      onLogin(selectedRole);
+      if (userData) {
+        console.log('[LoginScreen] Login bem-sucedido:', userData);
+        setCurrentUser(userData, roleKey);
+        onLogin(selectedRole);
 
-      const routeMap: any = {
-        driver: 'DriverMain',
-        guardian: 'GuardianMain',
-        school: 'SchoolMain',
-      };
-      navigation.navigate(routeMap[selectedRole]);
+        const routeMap: any = {
+          driver: 'DriverMain',
+          guardian: 'GuardianMain',
+          school: 'SchoolMain',
+        };
+        console.log('[LoginScreen] Navegando para:', routeMap[selectedRole]);
+        navigation.navigate(routeMap[selectedRole]);
+      } else {
+        console.warn('[LoginScreen] Sem dados de usuário retornados');
+        showToast('Credenciais inválidas ou erro no servidor.', 'error');
+      }
+    } catch (error: any) {
+      console.error('[LoginScreen] Erro no login:', error);
+      showToast(error.response?.data?.mensagem || 'Falha na conexão com o servidor.', 'error');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -78,7 +82,6 @@ export default function LoginScreen({ onLogin }: any) {
           <View style={styles.brandContainer}>
             <Logo size="large" showText={false} />
             <Text style={styles.title}>Tio da Perua</Text>
-            <Text style={styles.offlineBadge}>MODO OFFLINE (MOCK)</Text>
           </View>
 
           <View style={styles.card}>

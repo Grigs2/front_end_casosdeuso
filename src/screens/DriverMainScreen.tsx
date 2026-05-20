@@ -7,59 +7,70 @@ import DriverLayout from '../components/DriverLayout';
 
 export default function DriverMainScreen() {
   const navigation = useNavigation<any>();
-  const { trips, currentUser } = useAppContext();
+  const { activeTrips, currentUser } = useAppContext();
 
   return (
     <DriverLayout>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.hero}>
-          <Text style={styles.greeting}>Olá, {currentUser?.nome || 'Motorista'}!</Text>
-          <Text style={styles.status}>Pronto para a rota de hoje?</Text>
-        </View>
+      <View style={styles.webWrapper}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.hero}>
+            <Text style={styles.greeting}>Olá, {currentUser?.nome || 'Motorista'}!</Text>
+            <Text style={styles.status}>Pronto para a rota de hoje?</Text>
+          </View>
 
-        {/* The Mandatory Entry Point */}
-        <TouchableOpacity 
-          style={styles.mainAction}
-          onPress={() => navigation.navigate('DriverSearchStudents')}
-        >
-          <View style={styles.iconCircle}>
-            <Feather name="play" size={32} color="#FFF" />
-          </View>
-          <View style={styles.mainActionText}>
-            <Text style={styles.actionTitle}>Iniciar Operação</Text>
-            <Text style={styles.actionSubtitle}>Escolher período e gerenciar alunos</Text>
-          </View>
-          <Feather name="chevron-right" size={24} color="#1976D2" />
-        </TouchableOpacity>
+          {/* The Mandatory Entry Point */}
+          <TouchableOpacity 
+            style={styles.mainAction}
+            onPress={() => navigation.navigate('DriverTrips')}
+          >
+            <View style={styles.iconCircle}>
+              <Feather name="play" size={32} color="#FFF" />
+            </View>
+            <View style={styles.mainActionText}>
+              <Text style={styles.actionTitle}>Iniciar Operação</Text>
+              <Text style={styles.actionSubtitle}>Escolher período e gerenciar alunos</Text>
+            </View>
+            <Feather name="chevron-right" size={24} color="#1976D2" />
+          </TouchableOpacity>
 
-        <View style={styles.quickLinks}>
-          <Text style={styles.sectionTitle}>Acesso Rápido</Text>
-          <View style={styles.grid}>
-            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverHistory')}>
-              <Feather name="clock" size={24} color="#1976D2" />
-              <Text style={styles.cardLabel}>Histórico</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverVehicle')}>
-              <Feather name="truck" size={24} color="#1976D2" />
-              <Text style={styles.cardLabel}>Meu Veículo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('NoticeBoard')}>
-              <Feather name="bell" size={24} color="#1976D2" />
-              <Text style={styles.cardLabel}>Avisos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverProfile')}>
-              <Feather name="user" size={24} color="#1976D2" />
-              <Text style={styles.cardLabel}>Meu Perfil</Text>
-            </TouchableOpacity>
+          <View style={styles.quickLinks}>
+            <Text style={styles.sectionTitle}>Acesso Rápido</Text>
+            <View style={styles.grid}>
+              <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverHistory')}>
+                <Feather name="clock" size={24} color="#1976D2" />
+                <Text style={styles.cardLabel}>Histórico</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverVehicle')}>
+                <Feather name="truck" size={24} color="#1976D2" />
+                <Text style={styles.cardLabel}>Meu Veículo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('NoticeBoard')}>
+                <Feather name="bell" size={24} color="#1976D2" />
+                <Text style={styles.cardLabel}>Avisos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('DriverProfile')}>
+                <Feather name="user" size={24} color="#1976D2" />
+                <Text style={styles.cardLabel}>Meu Perfil</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </DriverLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
+  webWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    width: '100%',
+  },
+  container: { 
+    padding: 20,
+    width: '100%',
+    maxWidth: 800,
+  },
   hero: { marginBottom: 32, marginTop: 20 },
   greeting: { fontSize: 28, fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
   status: { fontSize: 16, color: '#86868B', marginTop: 4 },

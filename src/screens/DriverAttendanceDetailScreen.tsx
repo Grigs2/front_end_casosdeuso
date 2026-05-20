@@ -1,37 +1,47 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useAppContext, Dependent } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext';
+import { viagemService } from '../services/viagemService';
+import { DependenteParadaDTO } from '../types';
 
 export default function DriverAttendanceDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { markPresence, presenceLogs, schools } = useAppContext();
+  const { setCurrentStops, showToast } = useAppContext();
   
-  const { tripId, stopId, students, description } = route.params;
-  const [selectedStudent, setSelectedStudent] = useState<Dependent | null>(null);
+  const { tripId, stopId, students, stopDescription } = route.params;
+  const [submittingIds, setSubmittingIds] = useState<Record<number, boolean>>({});
+  const [selectedStudent, setSelectedStudent] = useState<DependenteParadaDTO | null>(null);
 
-  const getStatus = (studentId: number) => {
-    const today = new Date().toISOString().split('T')[0];
-    const log = presenceLogs.find(l => l.id_viagem === tripId && l.id_dependente === studentId && l.data === today);
-    return log?.status || 'ESPERANDO';
+  const handleAction = async (studentId: number, status: 'EMBARCADO' | 'DESEMBARCADO' | 'FALTOU') => {
+    if (submittingIds[studentId]) return;
+    setSubmittingIds(prev => ({ ...prev, [studentId]: true }));
+    try {
+      const updatedStops = await viagemService.alterarStatusPresenca(tripId, studentId, status);
+      setCurrentStops(updatedStops);
+      showToast(`Status de ${status} registrado!`, 'success');
+    } catch (error: any) {
+      console.error('Attendance Error:', error);
+      showToast(error.response?.data?.mensagem || 'Falha ao registrar presença.', 'error');
+    } finally {
+      setSubmittingIds(prev => ({ ...prev, [studentId]: false }));
+    }
   };
 
-  const handleAction = (studentId: number, status: 'EMBARCADO' | 'DESEMBARCADO' | 'FALTOU') => {
-    markPresence(tripId, studentId, status);
-    Alert.alert('Sucesso', `Status de ${status} registrado.`);
-  };
+  const isGlobalLoading = Object.values(submittingIds).some(v => v);
 
   return (
     <View style={styles.container}>
       {/* Exclusive Call Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={24} color="#1D1D1F" /></TouchableOpacity>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>Controle de Chamada</Text>
-          <Text style={styles.subtitle}>{description} (Parada {stopId})</Text>
+          <Text style={styles.subtitle}>{stopDescription} (Parada {stopId})</Text>
         </View>
+        {isGlobalLoading && <ActivityIndicator size="small" color="#1976D2" />}
       </View>
 
       <FlatList
@@ -39,24 +49,28 @@ export default function DriverAttendanceDetailScreen() {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const status = getStatus(item.id);
+          const status = item.statusEmbarque;
+          const isSubmitting = !!submittingIds[item.id];
           return (
             <View style={styles.card}>
-              {/* Clickable Name for Modal */}
               <TouchableOpacity onPress={() => setSelectedStudent(item)} style={styles.studentInfo}>
-                <Text style={styles.studentName}>{item.nome}</Text>
+                <Text style={styles.studentName}>{item.nomeDependente}</Text>
                 <View style={[styles.badge, { backgroundColor: status === 'EMBARCADO' ? '#E8F5E9' : status === 'DESEMBARCADO' ? '#E3F2FD' : '#F5F5F7' }]}>
-                  <Text style={[styles.badgeText, { color: status === 'EMBARCADO' ? '#2E7D32' : status === 'DESEMBARCADO' ? '#1976D2' : '#666' }]}>
-                    {status}
-                  </Text>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#1976D2" />
+                  ) : (
+                    <Text style={[styles.badgeText, { color: status === 'EMBARCADO' ? '#2E7D32' : status === 'DESEMBARCADO' ? '#1976D2' : '#666' }]}>
+                      {status}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
 
-              {/* Big Intuitive Buttons */}
               <View style={styles.actionRow}>
                 <TouchableOpacity 
                   style={[styles.bigBtn, styles.btnEmbarque, status === 'EMBARCADO' && styles.btnActive]}
                   onPress={() => handleAction(item.id, 'EMBARCADO')}
+                  disabled={isSubmitting}
                 >
                   <Feather name="log-in" size={24} color="#FFF" />
                   <Text style={styles.btnLabel}>Confirmar Embarque</Text>
@@ -65,13 +79,18 @@ export default function DriverAttendanceDetailScreen() {
                 <TouchableOpacity 
                   style={[styles.bigBtn, styles.btnDesembarque, status === 'DESEMBARCADO' && styles.btnActive]}
                   onPress={() => handleAction(item.id, 'DESEMBARCADO')}
+                  disabled={isSubmitting}
                 >
                   <Feather name="log-out" size={24} color="#FFF" />
                   <Text style={styles.btnLabel}>Confirmar Desembarque</Text>
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.btnFaltou} onPress={() => handleAction(item.id, 'FALTOU')}>
+              <TouchableOpacity 
+                style={styles.btnFaltou} 
+                onPress={() => handleAction(item.id, 'FALTOU')}
+                disabled={isSubmitting}
+              >
                 <Text style={styles.faltouText}>Marcar como Falta</Text>
               </TouchableOpacity>
             </View>
@@ -79,7 +98,6 @@ export default function DriverAttendanceDetailScreen() {
         }}
       />
 
-      {/* Student Detail Modal */}
       <Modal visible={!!selectedStudent} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -90,24 +108,16 @@ export default function DriverAttendanceDetailScreen() {
             {selectedStudent && (
               <ScrollView>
                 <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Endereço:</Text>
-                  <Text style={styles.detailValue}>{selectedStudent.endereco}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Idade:</Text>
-                    <Text style={styles.detailValue}>{selectedStudent.idade} anos</Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Sexo:</Text>
-                    <Text style={styles.detailValue}>{selectedStudent.sexo === 'M' ? 'Masculino' : 'Feminino'}</Text>
-                  </View>
+                  <Text style={styles.detailLabel}>Nome do Aluno:</Text>
+                  <Text style={styles.detailValue}>{selectedStudent.nomeDependente}</Text>
                 </View>
                 <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Escola:</Text>
-                  <Text style={styles.detailValue}>
-                    {schools.find(s => s.id === selectedStudent.id_escola)?.nome}
-                  </Text>
+                  <Text style={styles.detailLabel}>Nome do Responsável:</Text>
+                  <Text style={styles.detailValue}>{selectedStudent.nomeResponsavel}</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Status Atual:</Text>
+                  <Text style={styles.detailValue}>{selectedStudent.statusEmbarque}</Text>
                 </View>
               </ScrollView>
             )}
@@ -147,7 +157,6 @@ const styles = StyleSheet.create({
   detailItem: { marginBottom: 20 },
   detailLabel: { fontSize: 13, color: '#86868B', marginBottom: 4 },
   detailValue: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#1D1D1F' },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   closeModalBtn: { backgroundColor: '#F2F2F7', padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 20 },
   closeModalBtnText: { fontFamily: 'Inter_700Bold', color: '#1D1D1F' },
 });

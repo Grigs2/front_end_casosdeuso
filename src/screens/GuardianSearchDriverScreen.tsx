@@ -12,7 +12,14 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import GuardianLayout from '../components/GuardianLayout';
 import { RootStackParamList } from '../navigation';
-import { Driver } from '../types';
+
+interface Driver {
+  id: number;
+  nome: string;
+  veiculo: string;
+  placa: string;
+  telefone: string;
+}
 
 // 1. Mock Data
 const MOTORISTAS_MOCK: Driver[] = [
